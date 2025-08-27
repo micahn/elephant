@@ -28,8 +28,8 @@ var (
 )
 
 const (
-	ACTION_INSTALL = "install"
-	ACTION_REMOVE  = "remove"
+	ActionInstall = "install"
+	ActionRemove  = "remove"
 )
 
 type Config struct {
@@ -81,13 +81,13 @@ func Activate(qid uint32, identifier, action string, query string) {
 	var pkgcmd string
 
 	switch action {
-	case ACTION_INSTALL:
+	case ActionInstall:
 		pkgcmd = "sudo pacman -S"
 
 		if entryMap[identifier].Repository == "AUR" {
 			pkgcmd = command
 		}
-	case ACTION_REMOVE:
+	case ActionRemove:
 		pkgcmd = "sudo pacman -R"
 	}
 

@@ -141,24 +141,32 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 		icon := v.Icon
 
-		for _, v := range v.Entries {
-			if v.Icon != "" {
-				icon = v.Icon
+		for _, me := range v.Entries {
+			if me.Icon != "" {
+				icon = me.Icon
+			}
+
+			sub := me.Subtext
+
+			if !single && v.GlobalSearch {
+				if sub == "" {
+					sub = v.NamePretty
+				}
 			}
 
 			e := &pb.QueryResponse_Item{
-				Identifier: v.Identifier,
-				Text:       v.Text,
-				Subtext:    v.Subtext,
-				Provider:   fmt.Sprintf("%s:%s", Name, v.Menu),
+				Identifier: me.Identifier,
+				Text:       me.Text,
+				Subtext:    sub,
+				Provider:   fmt.Sprintf("%s:%s", Name, me.Menu),
 				Icon:       icon,
 				Type:       pb.QueryResponse_REGULAR,
-				Preview:    v.Preview,
+				Preview:    me.Preview,
 			}
 
-			if v.Async != "" {
+			if me.Async != "" {
 				go func() {
-					cmd := exec.Command("sh", "-c", v.Async)
+					cmd := exec.Command("sh", "-c", me.Async)
 					out, err := cmd.CombinedOutput()
 
 					if err == nil {
