@@ -49,6 +49,11 @@ Elephant acts as a unified backend service that aggregates data from various sou
 - **🌐 Websearch**
   - ... define custom search engines
 
+- **🌐 Archlinux Packages**
+  - list all packages: official and AUR
+  - list all explicitly installed packages `i:`
+  - remove / install packages (pacman, yay/paru)
+
 ## Installation
 
 ### Installing on Arch
