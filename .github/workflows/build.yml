@@ -139,6 +139,16 @@ jobs:
         echo "Building websearch plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/websearch-linux-arm64.so ./internal/providers/websearch
 
+    - name: Build archlinuxpkgs plugin for linux/amd64
+      run: |
+        echo "Building archlinuxpkgs plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/archlinuxpkgs-linux-amd64.so ./internal/providers/archlinuxpkgs
+
+    - name: Build archlinuxpkgs plugin for linux/arm64
+      run: |
+        echo "Building archlinuxpkgs plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/archlinuxpkgs-linux-arm64.so ./internal/providers/archlinuxpkgs
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -210,6 +220,10 @@ jobs:
         # Archive websearch plugin
         tar -czf websearch-linux-amd64.tar.gz websearch-linux-amd64.so
         tar -czf websearch-linux-arm64.tar.gz websearch-linux-arm64.so
+
+        # Archive archlinuxpkgs plugin
+        tar -czf archlinuxpkgs-linux-amd64.tar.gz archlinuxpkgs-linux-amd64.so
+        tar -czf archlinuxpkgs-linux-arm64.tar.gz archlinuxpkgs-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"
