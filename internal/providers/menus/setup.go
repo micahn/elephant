@@ -57,6 +57,8 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 	openmenu := false
 
+	terminal := false
+
 	for _, v := range common.Menus {
 		if identifier == v.Name {
 			menu = v
@@ -68,6 +70,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			if identifier == entry.Identifier {
 				menu = v
 				e = entry
+
+				terminal = v.Terminal || entry.Terminal
+
 				break
 			}
 		}
@@ -100,6 +105,13 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	} else {
 		run = strings.ReplaceAll(run, "%RESULT%", val)
 	}
+
+	fmt.Println(run)
+	if terminal {
+		run = common.WrapWithTerminal(run)
+	}
+
+	fmt.Println(run)
 
 	cmd := exec.Command("sh", "-c", run)
 

@@ -26,17 +26,19 @@ type Menu struct {
 	Action       string  `toml:"action"`
 	GlobalSearch bool    `toml:"global_search"`
 	Entries      []Entry `toml:"entries"`
+	Terminal     bool    `toml:"terminal"`
 }
 
 type Entry struct {
-	Text    string `toml:"text"`
-	Async   string `toml:"async"`
-	Subtext string `toml:"subtext"`
-	Value   string `toml:"value"`
-	Action  string `toml:"action"`
-	Icon    string `toml:"icon"`
-	SubMenu string `toml:"submenu"`
-	Preview string `toml:"preview"`
+	Text     string `toml:"text"`
+	Async    string `toml:"async"`
+	Subtext  string `toml:"subtext"`
+	Value    string `toml:"value"`
+	Action   string `toml:"action"`
+	Terminal bool   `toml:"terminal"`
+	Icon     string `toml:"icon"`
+	SubMenu  string `toml:"submenu"`
+	Preview  string `toml:"preview"`
 
 	Identifier string `toml:"-"`
 	Menu       string `toml:"-"`
