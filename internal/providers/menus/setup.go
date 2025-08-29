@@ -197,6 +197,16 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				}
 
 				e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
+
+				for _, v := range me.Keywords {
+					score, positions, start := common.FuzzyScore(query, v, exact)
+
+					if score > e.Score {
+						e.Score = score
+						e.Fuzzyinfo.Positions = positions
+						e.Fuzzyinfo.Start = start
+					}
+				}
 			}
 
 			if e.Score > common.MenuConfigLoaded.MinScore || query == "" {
