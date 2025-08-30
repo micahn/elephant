@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -85,6 +86,15 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 	run := menu.Action
 
+	if after, ok := strings.CutPrefix(identifier, "dmenu:"); ok {
+		run = after
+
+		if strings.Contains(run, "~") {
+			home, _ := os.UserHomeDir()
+			run = strings.ReplaceAll(run, "~", home)
+		}
+	}
+
 	if e.Action != "" {
 		run = e.Action
 	}
@@ -106,12 +116,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		run = strings.ReplaceAll(run, "%RESULT%", val)
 	}
 
-	fmt.Println(run)
 	if terminal {
 		run = common.WrapWithTerminal(run)
 	}
-
-	fmt.Println(run)
 
 	cmd := exec.Command("sh", "-c", run)
 
