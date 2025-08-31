@@ -83,16 +83,17 @@ func saveItems() {
 }
 
 func (i *Item) fromQuery(query string) {
-	splits := strings.SplitN(query, ":", 3)
+	query = strings.TrimPrefix(query, config.CreatePrefix)
+	splits := strings.SplitN(query, ":", 2)
 
 	switch len(splits) {
+	case 1:
+		i.Text = splits[0]
 	case 2:
 		i.Text = splits[1]
-	case 3:
-		i.Text = splits[2]
 
 		now := time.Now()
-		fields := strings.Fields(splits[1])
+		fields := strings.Fields(splits[0])
 
 		if len(fields) == 2 {
 			switch fields[0] {
@@ -136,7 +137,7 @@ func (i *Item) fromQuery(query string) {
 func init() {
 	config = &Config{
 		Config: common.Config{
-			Icon: "accessories-calculator",
+			Icon: "checkbox-checked",
 		},
 		CreatePrefix:    "add:",
 		UrgentTimeFrame: 10,
