@@ -149,6 +149,16 @@ jobs:
         echo "Building archlinuxpkgs plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/archlinuxpkgs-linux-arm64.so ./internal/providers/archlinuxpkgs
 
+    - name: Build todo plugin for linux/amd64
+      run: |
+        echo "Building todo plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/todo-linux-amd64.so ./internal/providers/todo
+
+    - name: Build todo plugin for linux/arm64
+      run: |
+        echo "Building todo plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/todo-linux-arm64.so ./internal/providers/todo
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -224,6 +234,10 @@ jobs:
         # Archive archlinuxpkgs plugin
         tar -czf archlinuxpkgs-linux-amd64.tar.gz archlinuxpkgs-linux-amd64.so
         tar -czf archlinuxpkgs-linux-arm64.tar.gz archlinuxpkgs-linux-arm64.so
+
+        # Archive todo plugin
+        tar -czf todo-linux-amd64.tar.gz todo-linux-amd64.so
+        tar -czf todo-linux-arm64.tar.gz todo-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"

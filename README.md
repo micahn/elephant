@@ -54,6 +54,11 @@ Elephant acts as a unified backend service that aggregates data from various sou
   - list all explicitly installed packages `i:`
   - remove / install packages (pacman, yay/paru)
 
+- **🌐 Todo List**
+  - add items, mark as active/done, clear done items
+  - create items with due times
+  - notifications
+
 ## Installation
 
 ### Installing on Arch
