@@ -26,6 +26,7 @@ Elephant acts as a unified backend service that aggregates data from various sou
 - **Clipboard**
   - Text and image clipboard history
   - Clipboard content management
+  - post-edit text content
 
 - **Runner**
   - Command execution from explicit lists

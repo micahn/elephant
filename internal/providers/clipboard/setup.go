@@ -28,14 +28,17 @@ var (
 	file       = common.CacheFile("clipboard.gob")
 	imgTypes   = make(map[string]string)
 	config     *Config
-	history    map[string]Item
+	history    map[string]*Item
 )
+
+const StateEditable = "editable"
 
 type Item struct {
 	Content  string
 	Img      string
 	Mimetype string
 	Time     time.Time
+	State    string
 }
 
 type Config struct {
@@ -81,7 +84,7 @@ func loadFromFile() {
 			}
 		}
 	} else {
-		history = map[string]Item{}
+		history = map[string]*Item{}
 	}
 }
 
@@ -168,13 +171,14 @@ func update() {
 	}
 
 	if !isImg {
-		history[md5str] = Item{
+		history[md5str] = &Item{
 			Content: string(out),
 			Time:    time.Now(),
+			State:   StateEditable,
 		}
 	} else {
 		if file := saveImg(out, imgTypes[mt[0]]); file != "" {
-			history[md5str] = Item{
+			history[md5str] = &Item{
 				Img:      file,
 				Mimetype: mt[0],
 				Time:     time.Now(),
@@ -244,6 +248,7 @@ func Cleanup(qid uint32) {}
 
 const (
 	ActionCopy   = "copy"
+	ActionEdit   = "edit"
 	ActionRemove = "remove"
 )
 
@@ -253,6 +258,36 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 
 	switch action {
+	case ActionEdit:
+		item := history[identifier]
+		if item.State != StateEditable {
+			return
+		}
+
+		tmpFile, err := os.CreateTemp("", "*.txt")
+		if err != nil {
+			slog.Error(Name, "edit", err)
+		}
+
+		tmpFile.Write([]byte(item.Content))
+
+		run := fmt.Sprintf("xdg-open file://%s", tmpFile.Name())
+		if common.ForceTerminalForFile(tmpFile.Name()) {
+			run = common.WrapWithTerminal(run)
+		}
+
+		cmd := exec.Command("sh", "-c", run)
+		err = cmd.Start()
+		if err != nil {
+			slog.Error(Name, "openedit", err)
+			return
+		} else {
+			cmd.Wait()
+
+			b, _ := os.ReadFile(tmpFile.Name())
+			item.Content = string(b)
+			saveToFile()
+		}
 	case ActionRemove:
 		if history[identifier].Img != "" {
 			_ = os.Remove(history[identifier].Img)

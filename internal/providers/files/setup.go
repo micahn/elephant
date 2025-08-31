@@ -5,12 +5,10 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"io/fs"
 	"log"
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -18,8 +16,6 @@ import (
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
-	"github.com/adrg/xdg"
-	"github.com/charlievieth/fastwalk"
 	"github.com/djherbis/times"
 	"github.com/fsnotify/fsnotify"
 )
@@ -35,8 +31,6 @@ type file struct {
 	path       string
 	changed    time.Time
 }
-
-var terminalApps = make(map[string]struct{})
 
 var (
 	Name       = "files"
@@ -61,8 +55,6 @@ func init() {
 	}
 
 	common.LoadConfig(Name, config)
-
-	findTerminalApps()
 
 	home, _ := os.UserHomeDir()
 	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
@@ -182,35 +174,6 @@ func Cleanup(qid uint32) {
 	results.Lock()
 	delete(results.Queries, qid)
 	results.Unlock()
-}
-
-func findTerminalApps() {
-	conf := fastwalk.Config{
-		Follow: true,
-	}
-
-	for _, root := range xdg.ApplicationDirs {
-		if _, err := os.Stat(root); err != nil {
-			continue
-		}
-
-		if err := fastwalk.Walk(&conf, root, func(path string, d fs.DirEntry, err error) error {
-			if strings.HasSuffix(path, ".desktop") {
-				b, err := os.ReadFile(path)
-				if err != nil {
-					return err
-				}
-
-				if bytes.Contains(b, []byte("Terminal=true")) {
-					terminalApps[filepath.Base(path)] = struct{}{}
-				}
-			}
-			return nil
-		}); err != nil {
-			slog.Error(Name, "walk", err)
-			os.Exit(1)
-		}
-	}
 }
 
 func Icon() string {
