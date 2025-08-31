@@ -54,10 +54,12 @@ const (
 )
 
 type Item struct {
-	Text     string
-	Date     time.Time
-	State    string
-	Notified bool
+	Text      string
+	Scheduled time.Time
+	Started   time.Time
+	Finished  time.Time
+	State     string
+	Notified  bool
 }
 
 func saveItems() {
@@ -129,7 +131,7 @@ func (i *Item) fromQuery(query string) {
 					time.Duration(minutei)*time.Minute)
 			}
 
-			i.Date = now
+			i.Scheduled = now
 		}
 	}
 }
@@ -164,11 +166,11 @@ func notify() {
 		hasNotification := false
 
 		for i, v := range items {
-			if v.Notified || v.Date.IsZero() {
+			if v.Notified || v.Scheduled.IsZero() {
 				continue
 			}
 
-			if v.Date.Equal(now) || v.Date.Before(now) {
+			if v.Scheduled.Equal(now) || v.Scheduled.Before(now) {
 				body := strings.ReplaceAll(config.Body, "%TASK%", v.Text)
 				cmd := exec.Command("notify-send", config.Title, body)
 
@@ -216,14 +218,18 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	case ActionMarkActive:
 		if items[i].State == StateActive {
 			items[i].State = StatePending
+			items[i].Started = time.Time{}
 		} else {
 			items[i].State = StateActive
+			items[i].Started = time.Now()
 		}
 	case ActionMarkDone:
 		if items[i].State == StateDone {
 			items[i].State = StatePending
+			items[i].Finished = time.Time{}
 		} else {
 			items[i].State = StateDone
+			items[i].Finished = time.Now()
 		}
 	case ActionClear:
 		n := 0
@@ -283,8 +289,8 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		e.Text = i.Text
 		e.State = []string{StateCreating}
 
-		if !i.Date.IsZero() {
-			e.Subtext = i.Date.Format(time.TimeOnly)
+		if !i.Scheduled.IsZero() {
+			e.Subtext = i.Scheduled.Format(time.TimeOnly)
 		}
 
 		entries = append(entries, e)
@@ -305,15 +311,23 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		e.State = []string{v.State}
 		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
 
-		if !v.Date.IsZero() {
-			e.Subtext = v.Date.Format(time.TimeOnly)
+		if !v.Started.IsZero() && !v.Finished.IsZero() {
+			duration := v.Finished.Sub(v.Started)
+			hours := int(duration.Hours())
+			minutes := int(duration.Minutes()) % 60
+
+			e.Subtext = fmt.Sprintf("Duration: %s", fmt.Sprintf("%02d:%02d", hours, minutes))
+		} else if !v.Started.IsZero() {
+			e.Subtext = fmt.Sprintf("Started: %s", v.Started.Format("15:04"))
+		} else if !v.Scheduled.IsZero() {
+			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format("15:04"))
 		}
 
 		if query != "" && !strings.HasPrefix(query, config.CreatePrefix) {
 			e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
 		}
 
-		if !v.Date.IsZero() && v.Date.Before(urgent) && v.State != StateDone && v.State != StateActive {
+		if !v.Scheduled.IsZero() && v.Scheduled.Before(urgent) && v.State != StateDone && v.State != StateActive {
 			e.State = []string{StateUrgent}
 		}
 
@@ -322,7 +336,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		}
 
 		if slices.Contains(e.State, StateUrgent) && query == "" {
-			diff := time.Since(v.Date).Minutes()
+			diff := time.Since(v.Scheduled).Minutes()
 			e.Score = 2_000_000 + int32(diff)
 		}
 
