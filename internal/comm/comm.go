@@ -15,7 +15,7 @@ import (
 // connection id
 var (
 	cid    uint32
-	Socket = filepath.Join(os.TempDir(), "elephant.sock")
+	Socket string
 )
 
 var registry []MessageHandler
@@ -32,6 +32,17 @@ const (
 )
 
 func init() {
+	rd := os.Getenv("XDG_RUNTIME_DIR")
+
+	if rd == "" {
+		slog.Error("socket", "runtimedir", "XDG_RUNTIME_DIR not set. falling back to /tmp")
+		Socket = filepath.Join(os.TempDir(), "elephant", "elephant.sock")
+	} else {
+		Socket = filepath.Join(rd, "elephant", "elephant.sock")
+	}
+
+	os.MkdirAll(Socket, 0755)
+
 	registry = make([]MessageHandler, 255)
 
 	registry[QueryRequestHandlerPos] = &handlers.QueryRequest{}
