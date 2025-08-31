@@ -159,6 +159,16 @@ jobs:
         echo "Building todo plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/todo-linux-arm64.so ./internal/providers/todo
 
+    - name: Build unicode plugin for linux/amd64
+      run: |
+        echo "Building unicode plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/unicode-linux-amd64.so ./internal/providers/unicode
+
+    - name: Build unicode plugin for linux/arm64
+      run: |
+        echo "Building unicode plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/unicode-linux-arm64.so ./internal/providers/unicode
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -238,6 +248,10 @@ jobs:
         # Archive todo plugin
         tar -czf todo-linux-amd64.tar.gz todo-linux-amd64.so
         tar -czf todo-linux-arm64.tar.gz todo-linux-arm64.so
+
+        # Archive unicode plugin
+        tar -czf unicode-linux-amd64.tar.gz unicode-linux-amd64.so
+        tar -czf unicode-linux-arm64.tar.gz unicode-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"
