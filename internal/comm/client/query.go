@@ -7,13 +7,29 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 	"google.golang.org/protobuf/proto"
 )
+
+var socket string
+
+func init() {
+	rd := os.Getenv("XDG_RUNTIME_DIR")
+
+	if rd == "" {
+		slog.Error("socket", "runtimedir", "XDG_RUNTIME_DIR not set. falling back to /tmp")
+		socket = filepath.Join(os.TempDir(), "elephant", "elephant.sock")
+	} else {
+		socket = filepath.Join(rd, "elephant", "elephant.sock")
+	}
+}
 
 func Query(data string, async bool) {
 	v := strings.Split(data, ";")
