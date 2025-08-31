@@ -67,6 +67,14 @@ func PrintDoc() {
 	fmt.Println("Websearch: search the web with custom defined searches")
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
+	fmt.Println()
+	fmt.Println("Example:")
+	fmt.Println(`
+[[entries]]
+default = true
+name = "Google"
+url = "https://www.google.com/search?q=%TERM%"
+`)
 }
 
 func Cleanup(qid uint32) {
