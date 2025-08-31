@@ -166,7 +166,7 @@ func notify() {
 		hasNotification := false
 
 		for i, v := range items {
-			if v.Notified || v.Scheduled.IsZero() {
+			if v.Notified || v.Scheduled.IsZero() || v.State != StatePending {
 				continue
 			}
 
