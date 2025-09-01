@@ -85,7 +85,7 @@ func saveItems() {
 }
 
 func (i *Item) fromQuery(query string) {
-	query = strings.TrimPrefix(query, config.CreatePrefix)
+	query = strings.TrimSpace(strings.TrimPrefix(query, config.CreatePrefix))
 
 	if strings.HasPrefix(query, "in ") || strings.HasPrefix(query, "at ") {
 		splits := strings.SplitN(query, " ", 3)
