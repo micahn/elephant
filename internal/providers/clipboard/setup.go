@@ -251,10 +251,11 @@ func PrintDoc() {
 func Cleanup(qid uint32) {}
 
 const (
-	ActionCopy         = "copy"
-	ActionEdit         = "edit"
-	ActionRemove       = "remove"
-	ActionToggleImages = "toggle_images"
+	ActionCopy              = "copy"
+	ActionEdit              = "edit"
+	ActionRemove            = "remove"
+	ActionToggleImages      = "toggle_images"
+	ActionDisableImagesOnly = "disabled_images_only"
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
@@ -263,6 +264,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 
 	switch action {
+	case ActionDisableImagesOnly:
+		imagesOnly = false
+		return
 	case ActionToggleImages:
 		imagesOnly = !imagesOnly
 		return
