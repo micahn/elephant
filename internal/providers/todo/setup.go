@@ -86,50 +86,53 @@ func saveItems() {
 
 func (i *Item) fromQuery(query string) {
 	query = strings.TrimPrefix(query, config.CreatePrefix)
-	splits := strings.SplitN(query, " ", 3)
 
-	switch len(splits) {
-	case 1:
-		i.Text = splits[0]
-	case 3:
-		i.Text = splits[2]
+	if strings.HasPrefix(query, "in ") || strings.HasPrefix(query, "at ") {
+		splits := strings.SplitN(query, " ", 3)
 
-		now := time.Now()
+		switch len(splits) {
+		case 3:
+			i.Text = splits[2]
 
-		switch splits[0] {
-		case "in":
-			switch {
-			case strings.HasSuffix(splits[1], "s"):
-				add := strings.TrimSuffix(splits[1], "s")
+			now := time.Now()
 
-				addi, _ := strconv.Atoi(add)
-				now = now.Add(time.Duration(addi) * time.Second)
-			case strings.HasSuffix(splits[1], "m"):
-				add := strings.TrimSuffix(splits[1], "m")
+			switch splits[0] {
+			case "in":
+				switch {
+				case strings.HasSuffix(splits[1], "s"):
+					add := strings.TrimSuffix(splits[1], "s")
 
-				addi, _ := strconv.Atoi(add)
-				now = now.Add(time.Duration(addi) * time.Minute)
-				now = now.Truncate(time.Minute)
-			case strings.HasSuffix(splits[1], "h"):
-				add := strings.TrimSuffix(splits[1], "h")
+					addi, _ := strconv.Atoi(add)
+					now = now.Add(time.Duration(addi) * time.Second)
+				case strings.HasSuffix(splits[1], "m"):
+					add := strings.TrimSuffix(splits[1], "m")
 
-				addi, _ := strconv.Atoi(add)
-				now = now.Add(time.Duration(addi) * time.Hour)
-				now = now.Truncate(time.Minute)
+					addi, _ := strconv.Atoi(add)
+					now = now.Add(time.Duration(addi) * time.Minute)
+					now = now.Truncate(time.Minute)
+				case strings.HasSuffix(splits[1], "h"):
+					add := strings.TrimSuffix(splits[1], "h")
+
+					addi, _ := strconv.Atoi(add)
+					now = now.Add(time.Duration(addi) * time.Hour)
+					now = now.Truncate(time.Minute)
+				}
+			case "at":
+				hour := splits[1][:2]
+				minute := splits[1][2:]
+				houri, _ := strconv.Atoi(hour)
+				minutei, _ := strconv.Atoi(minute)
+
+				now = time.Date(now.Year(), now.Month(), now.Day(),
+					0, 0, 0, 0, now.Location())
+				now = now.Add(time.Duration(houri)*time.Hour +
+					time.Duration(minutei)*time.Minute)
 			}
-		case "at":
-			hour := splits[1][:2]
-			minute := splits[1][2:]
-			houri, _ := strconv.Atoi(hour)
-			minutei, _ := strconv.Atoi(minute)
 
-			now = time.Date(now.Year(), now.Month(), now.Day(),
-				0, 0, 0, 0, now.Location())
-			now = now.Add(time.Duration(houri)*time.Hour +
-				time.Duration(minutei)*time.Minute)
+			i.Scheduled = now
 		}
-
-		i.Scheduled = now
+	} else {
+		i.Text = query
 	}
 }
 
