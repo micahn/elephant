@@ -199,6 +199,9 @@ func PrintDoc() {
 	fmt.Println("Simple Todo List with notifications")
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
+	fmt.Println()
+	fmt.Println("#### How to create a new item")
+	fmt.Println("Simply type in 'add:new item' or 'add:in 5m do something' in order to create a new item.")
 }
 
 func Cleanup(qid uint32) {
