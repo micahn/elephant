@@ -43,9 +43,10 @@ type Item struct {
 }
 
 type Config struct {
-	common.Config `koanf:",squash"`
-	MaxItems      int    `koanf:"max_items" desc:"max amount of clipboard history items" default:"100"`
-	ImageEditor   string `koanf:"image_editor" desc:"editor to use for images" default:""`
+	common.Config  `koanf:",squash"`
+	MaxItems       int    `koanf:"max_items" desc:"max amount of clipboard history items" default:"100"`
+	ImageEditorCmd string `koanf:"image_editor_cmd" desc:"editor to use for images. use '%FILE%' as placeholder for file path." default:""`
+	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 }
 
 func init() {
@@ -56,8 +57,8 @@ func init() {
 			Icon:     "user-bookmarks",
 			MinScore: 30,
 		},
-		MaxItems:    100,
-		ImageEditor: "",
+		MaxItems:       100,
+		ImageEditorCmd: "satty -f %FILE% -o %FILE%",
 	}
 
 	common.LoadConfig(Name, config)
@@ -277,12 +278,12 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if item.Img != "" {
-			if config.ImageEditor == "" {
+			if config.ImageEditorCmd == "" {
 				slog.Info(Name, "edit", "image_editor not set")
 				return
 			}
 
-			toRun := fmt.Sprintf("%s %s", config.ImageEditor, item.Img)
+			toRun := strings.ReplaceAll(config.ImageEditorCmd, "%FILE%", item.Img)
 
 			cmd := exec.Command("sh", "-c", toRun)
 
@@ -306,9 +307,16 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 		tmpFile.Write([]byte(item.Content))
 
-		run := fmt.Sprintf("xdg-open file://%s", tmpFile.Name())
-		if common.ForceTerminalForFile(tmpFile.Name()) {
-			run = common.WrapWithTerminal(run)
+		var run string
+
+		if config.TextEditorCmd != "" {
+			run = strings.ReplaceAll(config.TextEditorCmd, "%FILE%", tmpFile.Name())
+		} else {
+			run = fmt.Sprintf("xdg-open file://%s", tmpFile.Name())
+
+			if common.ForceTerminalForFile(tmpFile.Name()) {
+				run = common.WrapWithTerminal(run)
+			}
 		}
 
 		cmd := exec.Command("sh", "-c", run)
