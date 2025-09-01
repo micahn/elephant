@@ -88,7 +88,7 @@ func WrapWithTerminal(in string) string {
 		return in
 	}
 
-	return fmt.Sprintf("%s %s", terminal, in)
+	return fmt.Sprintf("%s -e %s", terminal, in)
 }
 
 func findTerminalApps() {
