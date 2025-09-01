@@ -29,6 +29,7 @@ var (
 	imgTypes   = make(map[string]string)
 	config     *Config
 	history    map[string]*Item
+	imagesOnly = false
 )
 
 const StateEditable = "editable"
@@ -43,7 +44,8 @@ type Item struct {
 
 type Config struct {
 	common.Config `koanf:",squash"`
-	MaxItems      int `koanf:"max_items" desc:"max amount of clipboard history items" default:"100"`
+	MaxItems      int    `koanf:"max_items" desc:"max amount of clipboard history items" default:"100"`
+	ImageEditor   string `koanf:"image_editor" desc:"editor to use for images" default:""`
 }
 
 func init() {
@@ -54,7 +56,8 @@ func init() {
 			Icon:     "user-bookmarks",
 			MinScore: 30,
 		},
-		MaxItems: 100,
+		MaxItems:    100,
+		ImageEditor: "",
 	}
 
 	common.LoadConfig(Name, config)
@@ -182,6 +185,7 @@ func update() {
 				Img:      file,
 				Mimetype: mt[0],
 				Time:     time.Now(),
+				State:    StateEditable,
 			}
 		}
 	}
@@ -247,9 +251,10 @@ func PrintDoc() {
 func Cleanup(qid uint32) {}
 
 const (
-	ActionCopy   = "copy"
-	ActionEdit   = "edit"
-	ActionRemove = "remove"
+	ActionCopy         = "copy"
+	ActionEdit         = "edit"
+	ActionRemove       = "remove"
+	ActionToggleImages = "toggle_images"
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
@@ -258,9 +263,35 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 
 	switch action {
+	case ActionToggleImages:
+		imagesOnly = !imagesOnly
+		return
 	case ActionEdit:
 		item := history[identifier]
 		if item.State != StateEditable {
+			return
+		}
+
+		if item.Img != "" {
+			if config.ImageEditor == "" {
+				slog.Info(Name, "edit", "image_editor not set")
+				return
+			}
+
+			toRun := fmt.Sprintf("%s %s", config.ImageEditor, item.Img)
+
+			cmd := exec.Command("sh", "-c", toRun)
+
+			err := cmd.Start()
+			if err != nil {
+				slog.Error(Name, "openedit", err)
+				return
+			} else {
+				go func() {
+					cmd.Wait()
+				}()
+			}
+
 			return
 		}
 
@@ -324,6 +355,10 @@ func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryR
 	entries := []*pb.QueryResponse_Item{}
 
 	for k, v := range history {
+		if imagesOnly && v.Img == "" {
+			continue
+		}
+
 		e := &pb.QueryResponse_Item{
 			Identifier: k,
 			Text:       v.Content,
