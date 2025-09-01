@@ -26,10 +26,11 @@ var (
 )
 
 type Config struct {
-	common.Config   `koanf:",squash"`
-	CreatePrefix    string `koanf:"create_prefix" desc:"prefix used in order to create a new item" default:"add:"`
-	UrgentTimeFrame int    `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
-	Notification    `koanf:",squash"`
+	common.Config     `koanf:",squash"`
+	CreatePrefix      string `koanf:"create_prefix" desc:"prefix used in order to create a new item" default:"add:"`
+	UrgentTimeFrame   int    `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
+	DuckPlayerVolumes bool   `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
+	Notification      `koanf:",squash"`
 }
 
 type Notification struct {
@@ -141,8 +142,9 @@ func init() {
 		Config: common.Config{
 			Icon: "checkbox-checked",
 		},
-		CreatePrefix:    "add:",
-		UrgentTimeFrame: 10,
+		CreatePrefix:      "add:",
+		UrgentTimeFrame:   10,
+		DuckPlayerVolumes: true,
 		Notification: Notification{
 			Title: "Task Due",
 			Body:  "%TASK%",
@@ -171,6 +173,7 @@ func notify() {
 			}
 
 			if v.Scheduled.Equal(now) || v.Scheduled.Before(now) {
+
 				body := strings.ReplaceAll(config.Body, "%TASK%", v.Text)
 				cmd := exec.Command("notify-send", config.Title, body)
 
@@ -178,6 +181,10 @@ func notify() {
 				if err != nil {
 					slog.Error(Name, "notify", err)
 				} else {
+					if config.DuckPlayerVolumes {
+						duckPlayers()
+					}
+
 					items[i].Notified = true
 					hasNotification = true
 
@@ -191,6 +198,20 @@ func notify() {
 		if hasNotification {
 			saveItems()
 		}
+	}
+}
+
+func duckPlayers() {
+	reduce := exec.Command("playerctl", "--all-players", "volume", "0.1")
+	reduce.Run()
+
+	initial := 0.1
+
+	for initial < 1.0 {
+		time.Sleep(time.Millisecond * 200)
+		initial += 0.1
+		raise := exec.Command("playerctl", "--all-players", "volume", fmt.Sprintf("%f", initial))
+		raise.Run()
 	}
 }
 
