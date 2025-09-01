@@ -259,7 +259,7 @@ const (
 	ActionDisableImagesOnly = "disabled_images_only"
 )
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(_ uint32, identifier, action string, arguments string) {
 	if action == "" {
 		action = ActionCopy
 	}

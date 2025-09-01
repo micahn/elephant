@@ -314,14 +314,22 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		e.State = []string{v.State}
 		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
 
-		if !v.Started.IsZero() && !v.Finished.IsZero() {
-			duration := v.Finished.Sub(v.Started)
+		if !v.Finished.IsZero() {
+			if !v.Started.IsZero() {
+				duration := v.Finished.Sub(v.Started)
+				hours := int(duration.Hours())
+				minutes := int(duration.Minutes()) % 60
+
+				e.Subtext = fmt.Sprintf("Started: %s, Finished: %s, Duration: %s", v.Started.Format("15:04"), v.Finished.Format("15:04"), fmt.Sprintf("%02d:%02d", hours, minutes))
+			} else {
+				e.Subtext = fmt.Sprintf("Finished: %s", v.Finished.Format("15:04"))
+			}
+		} else if !v.Started.IsZero() {
+			duration := time.Since(v.Started)
 			hours := int(duration.Hours())
 			minutes := int(duration.Minutes()) % 60
 
-			e.Subtext = fmt.Sprintf("Duration: %s", fmt.Sprintf("%02d:%02d", hours, minutes))
-		} else if !v.Started.IsZero() {
-			e.Subtext = fmt.Sprintf("Started: %s", v.Started.Format("15:04"))
+			e.Subtext = fmt.Sprintf("Started: %s, Ongoing: %s", v.Started.Format("15:04"), fmt.Sprintf("%02d:%02d", hours, minutes))
 		} else if !v.Scheduled.IsZero() {
 			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format("15:04"))
 		}
