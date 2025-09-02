@@ -22,23 +22,14 @@ var (
 	NamePretty = "Menus"
 )
 
-//go:embed other.toml
-var other string
-
-//go:embed screenshots.toml
-var screenshots string
+//go:embed README.md
+var readme string
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Custom menus.")
-	fmt.Println("Default location for menu definitions is `~/.config/elephant/menus/`.")
+	fmt.Println(readme)
+	fmt.Println()
 	util.PrintConfig(common.MenuConfig{}, Name)
-	fmt.Println("#### Example Menus")
-	fmt.Println()
-	fmt.Printf("```toml\n%s\n```", other)
-	fmt.Println()
-	fmt.Printf("```toml\n%s\n```", screenshots)
-	fmt.Println()
+	util.PrintConfig(common.Menu{}, Name)
 }
 
 func Cleanup(qid uint32) {

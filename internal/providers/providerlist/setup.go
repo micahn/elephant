@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
+	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
@@ -17,6 +19,9 @@ var (
 	NamePretty = "Providerlist"
 	config     *Config
 )
+
+//go:embed README.md
+var readme string
 
 type Config struct {
 	common.Config `koanf:",squash"`
@@ -36,9 +41,9 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("List installed providers")
+	fmt.Println(readme)
 	fmt.Println()
+	util.PrintConfig(Config{}, Name)
 }
 
 func Cleanup(qid uint32) {

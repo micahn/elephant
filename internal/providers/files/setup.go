@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	_ "embed"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -25,6 +26,9 @@ var (
 	paths   = make(map[string]*file)
 	results = providers.QueryData{}
 )
+
+//go:embed README.md
+var readme string
 
 type file struct {
 	identifier string
@@ -163,8 +167,7 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Search files and folders.")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }

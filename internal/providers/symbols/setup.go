@@ -2,6 +2,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log"
 	"log/slog"
@@ -23,6 +24,9 @@ var (
 	h          = history.Load(Name)
 	results    = providers.QueryData{}
 )
+
+//go:embed README.md
+var readme string
 
 type Config struct {
 	common.Config    `koanf:",squash"`
@@ -54,10 +58,9 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Find symbols and emojis.")
+	fmt.Println(readme)
 	fmt.Println()
-	fmt.Println("Possible locales:")
+	fmt.Println("#### Possible locales")
 
 	entries, err := files.ReadDir("data")
 	if err != nil {

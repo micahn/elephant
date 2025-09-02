@@ -15,8 +15,11 @@ import (
 	"time"
 	"unicode"
 
+	_ "embed"
+
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
+	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
@@ -25,6 +28,9 @@ var (
 	NamePretty = "Calculator/Unit-Conversion"
 	config     *Config
 )
+
+//go:embed README.md
+var readme string
 
 const (
 	ActionCopy   = "copy"
@@ -81,9 +87,9 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Calculator/Unit-Conversion with history.")
+	fmt.Println(readme)
 	fmt.Println()
+	util.PrintConfig(Config{}, Name)
 }
 
 func Cleanup(qid uint32) {

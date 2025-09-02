@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,9 @@ var (
 	installed  = []string{}
 	command    = "yay -S"
 )
+
+//go:embed README.md
+var readme string
 
 const (
 	ActionInstall = "install"
@@ -67,8 +71,7 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Arch Linux Packages: find packages and install them.")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }

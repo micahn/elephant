@@ -25,6 +25,9 @@ var (
 	results    = providers.QueryData{}
 )
 
+//go:embed README.md
+var readme string
+
 //go:embed data/UnicodeData.txt
 var data string
 
@@ -68,8 +71,7 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Find unicode symbols.")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }

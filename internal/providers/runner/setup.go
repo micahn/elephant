@@ -3,6 +3,7 @@ package main
 
 import (
 	"crypto/md5"
+	_ "embed"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
@@ -27,6 +28,9 @@ var (
 	NamePretty = "Runner"
 	results    = providers.QueryData{}
 )
+
+//go:embed README.md
+var readme string
 
 type ExplicitItem struct {
 	Exec  string `koanf:"exec" desc:"executable/command to run" default:""`
@@ -116,8 +120,7 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Run everything in your $PATH!")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }

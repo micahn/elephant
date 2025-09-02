@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"log/slog"
 	"time"
 
@@ -19,6 +20,9 @@ var (
 	h          = history.Load(Name)
 	config     *Config
 )
+
+//go:embed README.md
+var readme string
 
 type Config struct {
 	common.Config           `koanf:",squash"`

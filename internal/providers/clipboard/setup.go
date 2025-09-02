@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	_ "embed"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
@@ -32,6 +33,9 @@ var (
 	imagesOnly = false
 )
 
+//go:embed README.md
+var readme string
+
 const StateEditable = "editable"
 
 type Item struct {
@@ -58,7 +62,8 @@ func init() {
 			MinScore: 30,
 		},
 		MaxItems:       100,
-		ImageEditorCmd: "satty -f %FILE% -o %FILE%",
+		ImageEditorCmd: "",
+		TextEditorCmd:  "",
 	}
 
 	common.LoadConfig(Name, config)
@@ -243,8 +248,7 @@ func saveImg(b []byte, ext string) string {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Provides access to your clipboard history.")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }

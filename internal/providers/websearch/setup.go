@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -20,6 +21,9 @@ var (
 	NamePretty = "Websearch"
 	config     *Config
 )
+
+//go:embed README.md
+var readme string
 
 const (
 	ActionCopy   = "copy"
@@ -63,18 +67,9 @@ func init() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Websearch: search the web with custom defined searches")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
-	fmt.Println()
-	fmt.Println("Example:")
-	fmt.Println(`
-[[entries]]
-default = true
-name = "Google"
-url = "https://www.google.com/search?q=%TERM%"
-`)
 }
 
 func Cleanup(qid uint32) {

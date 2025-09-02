@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/gob"
 	"fmt"
 	"log/slog"
@@ -24,6 +25,9 @@ var (
 	config     *Config
 	items      = []Item{}
 )
+
+//go:embed README.md
+var readme string
 
 type Config struct {
 	common.Config     `koanf:",squash"`
@@ -217,13 +221,9 @@ func duckPlayers() {
 }
 
 func PrintDoc() {
-	fmt.Printf("### %s\n", NamePretty)
-	fmt.Println("Simple Todo List with notifications")
+	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
-	fmt.Println()
-	fmt.Println("#### How to create a new item")
-	fmt.Println("Simply type in 'add:new item' or 'add:in 5m do something' in order to create a new item.")
 }
 
 func Cleanup(qid uint32) {

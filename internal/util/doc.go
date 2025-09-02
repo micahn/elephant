@@ -82,6 +82,15 @@ func printStructDesc(c any) {
 			}
 
 			name := field.Tag.Get("koanf")
+
+			if name == "" {
+				name = field.Tag.Get("toml")
+			}
+
+			if name == "-" {
+				continue
+			}
+
 			fmt.Printf("|%s|%s|%s|%s|\n",
 				name, field.Type, field.Tag.Get("default"), field.Tag.Get("desc"))
 
