@@ -230,8 +230,11 @@ func Cleanup(qid uint32) {
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if strings.HasPrefix(identifier, config.CreatePrefix) {
-		store(identifier)
+	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
+		if after != "" {
+			store(after)
+		}
+
 		return
 	}
 
@@ -370,7 +373,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		e := &pb.QueryResponse_Item{}
 		e.Score = 3_000_000
 		e.Provider = Name
-		e.Identifier = query
+		e.Identifier = fmt.Sprintf("CREATE:%s", query)
 		e.Icon = "list-add"
 		e.Text = i.Text
 		e.State = []string{StateCreating}
