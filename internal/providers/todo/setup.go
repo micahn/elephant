@@ -27,7 +27,7 @@ var (
 
 type Config struct {
 	common.Config     `koanf:",squash"`
-	CreatePrefix      string `koanf:"create_prefix" desc:"prefix used in order to create a new item" default:"add:"`
+	CreatePrefix      string `koanf:"create_prefix" desc:"prefix used in order to create a new item. will otherwise be based on matches (min_score)." default:""`
 	UrgentTimeFrame   int    `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
 	DuckPlayerVolumes bool   `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
 	Notification      `koanf:",squash"`
@@ -140,9 +140,10 @@ func (i *Item) fromQuery(query string) {
 func init() {
 	config = &Config{
 		Config: common.Config{
-			Icon: "checkbox-checked",
+			Icon:     "checkbox-checked",
+			MinScore: 50,
 		},
-		CreatePrefix:      "add:",
+		CreatePrefix:      "",
 		UrgentTimeFrame:   10,
 		DuckPlayerVolumes: true,
 		Notification: Notification{
@@ -301,24 +302,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 	entries := []*pb.QueryResponse_Item{}
 	urgent := time.Now().Add(time.Duration(config.UrgentTimeFrame) * time.Minute)
 
-	if strings.HasPrefix(query, config.CreatePrefix) {
-		i := Item{}
-		i.fromQuery(query)
-
-		e := &pb.QueryResponse_Item{}
-		e.Score = 3_000_000
-		e.Provider = Name
-		e.Identifier = query
-		e.Icon = "list-add"
-		e.Text = i.Text
-		e.State = []string{StateCreating}
-
-		if !i.Scheduled.IsZero() {
-			e.Subtext = i.Scheduled.Format(time.TimeOnly)
-		}
-
-		entries = append(entries, e)
-	}
+	var highestScore int32
 
 	for i, v := range items {
 		e := &pb.QueryResponse_Item{}
@@ -355,7 +339,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format("15:04"))
 		}
 
-		if query != "" && !strings.HasPrefix(query, config.CreatePrefix) {
+		if query != "" {
 			e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
 		}
 
@@ -370,6 +354,29 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		if slices.Contains(e.State, StateUrgent) && query == "" {
 			diff := time.Since(v.Scheduled).Minutes()
 			e.Score = 2_000_000 + int32(diff)
+		}
+
+		if e.Score > highestScore {
+			highestScore = e.Score
+		}
+
+		entries = append(entries, e)
+	}
+
+	if (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
+		i := Item{}
+		i.fromQuery(query)
+
+		e := &pb.QueryResponse_Item{}
+		e.Score = 3_000_000
+		e.Provider = Name
+		e.Identifier = query
+		e.Icon = "list-add"
+		e.Text = i.Text
+		e.State = []string{StateCreating}
+
+		if !i.Scheduled.IsZero() {
+			e.Subtext = i.Scheduled.Format(time.TimeOnly)
 		}
 
 		entries = append(entries, e)
