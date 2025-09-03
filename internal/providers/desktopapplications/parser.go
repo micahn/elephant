@@ -31,6 +31,8 @@ type Data struct {
 }
 
 func parseFile(path, l, ll string) *DesktopFile {
+	slog.Debug(Name, "parse", path)
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		slog.Error(Name, "parseFile", err)
@@ -258,26 +260,45 @@ func parseExec(execLine string) (string, error) {
 }
 
 func splitIntoParsebles(in []byte) [][]byte {
-	actions := bytes.Contains(in, []byte("Desktop Action"))
+	hasAction := bytes.Contains(in, []byte("Desktop Action"))
 
-	if !actions {
+	if !hasAction {
 		return [][]byte{in}
 	}
 
 	parts := [][]byte{}
-	posGeneric := bytes.Index(in, []byte("Desktop Entry"))
-	posAction := bytes.Index(in, []byte("Desktop Action")) - 1
 
-	parts = append(parts, in[posGeneric:posAction])
+	indexes := []int{}
+	i := 0
 
-	rest := in[posAction:]
-
-	for i := bytes.LastIndex(rest, []byte("Desktop Action")) - 1; i > 1; i = bytes.LastIndex(rest, []byte("Desktop Action")) - 1 {
-		parts = append(parts, rest[i:])
-		rest = rest[:i]
+	for i < len(in) {
+		idx := bytes.Index(in[i:], []byte("[Desk"))
+		if idx == -1 {
+			break
+		}
+		indexes = append(indexes, i+idx)
+		i += idx + len([]byte("[Desk"))
 	}
 
-	parts = append(parts, rest)
+	for k, v := range indexes {
+		if k+1 < len(indexes) {
+			parts = append(parts, in[v:indexes[k+1]])
+		} else {
+			parts = append(parts, in[v:])
+		}
+	}
+
+	slices.SortFunc(parts, func(a, b []byte) int {
+		if bytes.Contains(a, []byte("[Desktop Entry")) {
+			return -1
+		}
+
+		if bytes.Contains(b, []byte("[Desktop Entry")) {
+			return 1
+		}
+
+		return 0
+	})
 
 	return parts
 }
