@@ -46,11 +46,12 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	err := cmd.Start()
 	if err != nil {
 		slog.Error(Name, "activate", identifier, "error", err)
+		return
+	} else {
+		go func() {
+			cmd.Wait()
+		}()
 	}
-
-	go func() {
-		cmd.Wait()
-	}()
 
 	if config.History {
 		var last uint32

@@ -107,7 +107,7 @@ func saveToFile() {
 		return
 	}
 
-	err = os.MkdirAll(filepath.Dir(file), 0755)
+	err = os.MkdirAll(filepath.Dir(file), 0o755)
 	if err != nil {
 		slog.Error(Name, "createdirs", err)
 		return
@@ -228,7 +228,7 @@ func saveImg(b []byte, ext string) string {
 	d, _ := os.UserCacheDir()
 	folder := filepath.Join(d, "elephant", "clipboardimages")
 
-	os.MkdirAll(folder, 0755)
+	os.MkdirAll(folder, 0o755)
 
 	file := filepath.Join(folder, fmt.Sprintf("%d.%s", time.Now().Unix(), ext))
 
@@ -307,6 +307,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 		tmpFile, err := os.CreateTemp("", "*.txt")
 		if err != nil {
 			slog.Error(Name, "edit", err)
+			return
 		}
 
 		tmpFile.Write([]byte(item.Content))
@@ -357,6 +358,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 		err := cmd.Start()
 		if err != nil {
 			slog.Error("clipboard", "activate", err)
+			return
 		} else {
 			go func() {
 				cmd.Wait()

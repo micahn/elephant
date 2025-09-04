@@ -90,6 +90,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	err := cmd.Start()
 	if err != nil {
 		slog.Error(Name, "activate", err)
+		return
 	} else {
 		go func() {
 			cmd.Wait()
