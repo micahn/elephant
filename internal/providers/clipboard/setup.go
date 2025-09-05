@@ -260,7 +260,7 @@ const (
 	ActionEdit              = "edit"
 	ActionRemove            = "remove"
 	ActionToggleImages      = "toggle_images"
-	ActionDisableImagesOnly = "disabled_images_only"
+	ActionDisableImagesOnly = "disable_images_only"
 )
 
 func Activate(_ uint32, identifier, action string, arguments string) {
