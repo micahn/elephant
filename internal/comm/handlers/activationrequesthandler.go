@@ -26,7 +26,9 @@ func (a *ActivateRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		provider = strings.Split(provider, ":")[0]
 	}
 
-	providers.Providers[provider].Activate(uint32(req.Qid), req.Identifier, req.Action, req.Arguments)
+	if p, ok := providers.Providers[provider]; ok {
+		p.Activate(uint32(req.Qid), req.Identifier, req.Action, req.Arguments)
+	}
 
 	providers.Cleanup(uint32(req.Qid))
 }
