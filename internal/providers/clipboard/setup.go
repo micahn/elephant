@@ -146,10 +146,6 @@ func handleChange() {
 }
 
 func update() {
-	if os.Getenv("CLIPBOARD_STATE") == "sensitive" {
-		return
-	}
-
 	cmd := exec.Command("wl-paste", "-n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -166,6 +162,10 @@ func update() {
 	isImg := false
 
 	for _, v := range mt {
+		if v == "x-kde-passwordManagerHint" {
+			return
+		}
+
 		if _, ok := imgTypes[v]; ok {
 			isImg = true
 			break
