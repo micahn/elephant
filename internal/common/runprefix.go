@@ -2,6 +2,7 @@ package common
 
 import (
 	"log/slog"
+	"os"
 	"os/exec"
 )
 
@@ -25,12 +26,21 @@ func InitRunPrefix() {
 		if err == nil {
 			runPrefix = "uwsm app --"
 			slog.Info("config", "runprefix", runPrefix)
+			return
 		}
 	}
 
-	if runPrefix == "" {
-		slog.Info("config", "runprefix", "<empty>")
+	spid := os.Getenv("SYSTEMD_EXEC_PID")
+	if spid != "" {
+		systemdrun, err := exec.LookPath("systemd-run")
+		if err == nil && systemdrun != "" {
+			runPrefix = "systemd-run --user"
+			slog.Info("config", "runprefix", runPrefix)
+			return
+		}
 	}
+
+	slog.Info("config", "runprefix", "<empty>")
 }
 
 func LaunchPrefix(override string) string {
