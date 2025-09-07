@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"encoding/gob"
+	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/abenz1267/elephant/internal/common"
@@ -18,6 +22,7 @@ var (
 	Name       = "desktopapplications"
 	NamePretty = "Desktop Applications"
 	h          = history.Load(Name)
+	pins       = loadpinned()
 	config     *Config
 )
 
@@ -36,7 +41,28 @@ type Config struct {
 
 	IconPlaceholder string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
 	Aliases         map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
-	Pinned          []string          `koanf:"pinned" desc:"Pinned items will appear in order on top of list. Value = <identifier>. Check elephant log output when activating an item to get its identifier." default:"<empty>"`
+}
+
+func loadpinned() []string {
+	pinned := []string{}
+
+	file := common.CacheFile(fmt.Sprintf("%s_pinned.gob", Name))
+
+	if common.FileExists(file) {
+		f, err := os.ReadFile(file)
+		if err != nil {
+			slog.Error("pinned", "load", err)
+		} else {
+			decoder := gob.NewDecoder(bytes.NewReader(f))
+
+			err = decoder.Decode(&h)
+			if err != nil {
+				slog.Error("pinned", "decoding", err)
+			}
+		}
+	}
+
+	return pinned
 }
 
 func init() {

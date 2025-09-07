@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -11,7 +16,14 @@ import (
 	"github.com/abenz1267/elephant/internal/common/history"
 )
 
+const ActionTogglePin = "toggle_pin"
+
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == ActionTogglePin {
+		pinItem(identifier)
+		return
+	}
+
 	if action == history.ActionDelete {
 		h.Remove(identifier)
 		return
@@ -76,4 +88,33 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 
 	slog.Info(Name, "activated", identifier)
+}
+
+func pinItem(identifier string) {
+	if slices.Contains(pins, identifier) {
+		i := slices.Index(pins, identifier)
+		pins = append(pins[:i], pins[i+1:]...)
+	} else {
+		pins = append(pins, identifier)
+	}
+
+	var b bytes.Buffer
+	encoder := gob.NewEncoder(&b)
+
+	err := encoder.Encode(pins)
+	if err != nil {
+		slog.Error("pinned", "encode", err)
+		return
+	}
+
+	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s_pinned.gob", Name))), 0o755)
+	if err != nil {
+		slog.Error("pinned", "createdirs", err)
+		return
+	}
+
+	err = os.WriteFile(common.CacheFile(fmt.Sprintf("%s_pinned.gob", Name)), b.Bytes(), 0o600)
+	if err != nil {
+		slog.Error("pinned", "writefile", err)
+	}
 }

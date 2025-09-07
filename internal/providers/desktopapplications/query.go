@@ -73,10 +73,13 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 			score = score + usageScore
 		}
 
+		pinned := false
+
 		if query == "" {
-			i := slices.Index(config.Pinned, k)
+			i := slices.Index(pins, k)
 
 			if i != -1 {
+				pinned = true
 				score = 1000000 - int32(i)
 				usageScore = score
 			}
@@ -88,6 +91,12 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 				if usageScore != 0 {
 					state = append(state, "history")
+				}
+
+				if pinned {
+					state = append(state, "pinned")
+				} else {
+					state = append(state, "unpinned")
 				}
 
 				entries = append(entries, &pb.QueryResponse_Item{
@@ -150,10 +159,13 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				}
 			}
 
+			pinned := false
+
 			if query == "" {
-				i := slices.Index(config.Pinned, identifier)
+				i := slices.Index(pins, identifier)
 
 				if i != -1 {
+					pinned = true
 					score = 1000000 - int32(i)
 					usageScore = score
 				}
@@ -165,6 +177,12 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 					if usageScore != 0 {
 						state = append(state, "history")
+					}
+
+					if pinned {
+						state = append(state, "pinned")
+					} else {
+						state = append(state, "unpinned")
 					}
 
 					entries = append(entries, &pb.QueryResponse_Item{
