@@ -12,6 +12,7 @@ import (
 
 	"github.com/abenz1267/elephant/internal/comm/handlers"
 	"github.com/abenz1267/elephant/internal/common"
+	"github.com/abenz1267/elephant/internal/common/history"
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
@@ -20,6 +21,8 @@ import (
 var (
 	Name       = "menus"
 	NamePretty = "Menus"
+	results    = providers.QueryData{}
+	h          = history.Load(Name)
 )
 
 //go:embed README.md
@@ -33,6 +36,10 @@ func PrintDoc() {
 }
 
 func Cleanup(qid uint32) {
+	slog.Info(Name, "cleanup", qid)
+	results.Lock()
+	delete(results.Queries, qid)
+	results.Unlock()
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
@@ -129,12 +136,34 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			cmd.Wait()
 		}()
 	}
+
+	if menu.History {
+		var last uint32
+
+		for k := range results.Queries[qid] {
+			if k > last {
+				last = k
+			}
+		}
+
+		if last != 0 {
+			h.Save(results.Queries[qid][last], identifier)
+		} else {
+			h.Save("", identifier)
+		}
+	}
 }
 
 func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 	menu := ""
+
+	initialQuery := query
+
+	if query != "" {
+		results.GetData(query, qid, iid, exact)
+	}
 
 	split := strings.Split(query, ":")
 	single := len(split) > 1
@@ -208,6 +237,14 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 						e.Fuzzyinfo.Positions = positions
 						e.Fuzzyinfo.Start = start
 					}
+				}
+			}
+
+			var usageScore int32
+			if v.History {
+				if e.Score > v.MinScore || query == "" && v.HistoryWhenEmpty {
+					usageScore = h.CalcUsageScore(initialQuery, e.Identifier)
+					e.Score = e.Score + usageScore
 				}
 			}
 

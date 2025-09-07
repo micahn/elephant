@@ -22,8 +22,8 @@ var (
 	Name       = "websearch"
 	NamePretty = "Websearch"
 	config     *Config
-	results    = providers.QueryData{}
 	prefixes   = make(map[string]int)
+	results    = providers.QueryData{}
 	h          = history.Load(Name)
 )
 

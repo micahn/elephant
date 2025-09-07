@@ -19,16 +19,19 @@ type MenuConfig struct {
 }
 
 type Menu struct {
-	Name         string   `toml:"name" desc:"name of the menu"`
-	NamePretty   string   `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
-	Description  string   `toml:"description" desc:"used as a subtext"`
-	Icon         string   `toml:"icon" desc:"default icon"`
-	Action       string   `toml:"action" desc:"default action"`
-	GlobalSearch bool     `toml:"global_search" desc:"sets if entries in this menu should be searchable globally without being in the menu"`
-	Entries      []Entry  `toml:"entries" desc:"menu items"`
-	Terminal     bool     `toml:"terminal" desc:"execute action in terminal or not"`
-	Keywords     []string `toml:"keywords" desc:"searchable keywords"`
-	FixedOrder   bool     `toml:"fixed_order" desc:"don't sort entries alphabetically"`
+	Name             string   `toml:"name" desc:"name of the menu"`
+	NamePretty       string   `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
+	Description      string   `toml:"description" desc:"used as a subtext"`
+	Icon             string   `toml:"icon" desc:"default icon"`
+	Action           string   `toml:"action" desc:"default action"`
+	GlobalSearch     bool     `toml:"global_search" desc:"sets if entries in this menu should be searchable globally without being in the menu"`
+	Entries          []Entry  `toml:"entries" desc:"menu items"`
+	Terminal         bool     `toml:"terminal" desc:"execute action in terminal or not"`
+	Keywords         []string `toml:"keywords" desc:"searchable keywords"`
+	FixedOrder       bool     `toml:"fixed_order" desc:"don't sort entries alphabetically"`
+	History          bool     `toml:"history" desc:"make use of history for sorting"`
+	HistoryWhenEmpty bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
+	MinScore         int32    `koanf:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 }
 
 type Entry struct {

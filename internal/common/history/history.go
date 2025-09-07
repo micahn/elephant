@@ -59,7 +59,7 @@ func (h *History) Save(query, identifier string) {
 		return
 	}
 
-	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s_history.gob", h.Provider))), 0755)
+	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s_history.gob", h.Provider))), 0o755)
 	if err != nil {
 		slog.Error("history", "createdirs", err)
 		return

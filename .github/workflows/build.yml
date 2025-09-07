@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 env:
-  GO_VERSION: "1.24"
+  GO_VERSION: "1.25"
   PROJECT_NAME: "elephant"
 
 jobs:
@@ -42,12 +42,12 @@ jobs:
     - name: Build elephant for linux/amd64
       run: |
         echo "Building elephant for linux/amd64..."
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o build/elephant-linux-amd64 ./cmd/elephant.go
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o build/elephant-linux-amd64 ./cmd/elephant/elephant.go
 
     - name: Build elephant for linux/arm64
       run: |
         echo "Building elephant for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -o build/elephant-linux-arm64 ./cmd/elephant.go
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -o build/elephant-linux-arm64 ./cmd/elephant/elephant.go
 
     - name: Build desktopapplications plugin for linux/amd64
       run: |
