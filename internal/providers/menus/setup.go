@@ -151,7 +151,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 		icon := v.Icon
 
-		for _, me := range v.Entries {
+		for k, me := range v.Entries {
 			if me.Icon != "" {
 				icon = me.Icon
 			}
@@ -172,6 +172,10 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				Icon:       icon,
 				Type:       pb.QueryResponse_REGULAR,
 				Preview:    me.Preview,
+			}
+
+			if v.FixedOrder {
+				e.Score = 1_000_000 - int32(k)
 			}
 
 			if me.Async != "" {

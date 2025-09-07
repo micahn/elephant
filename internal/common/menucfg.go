@@ -28,13 +28,14 @@ type Menu struct {
 	Entries      []Entry  `toml:"entries" desc:"menu items"`
 	Terminal     bool     `toml:"terminal" desc:"execute action in terminal or not"`
 	Keywords     []string `toml:"keywords" desc:"searchable keywords"`
+	FixedOrder   bool     `toml:"fixed_order" desc:"don't sort entries alphabetically"`
 }
 
 type Entry struct {
 	Text     string   `toml:"text" desc:"text for entry"`
 	Async    string   `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
 	Subtext  string   `toml:"subtext" desc:"sub text for entry"`
-	Value    string   `toml:"value" desc:"value to be used for the action, defauls to the text if empty"`
+	Value    string   `toml:"value" desc:"value to be used for the action, defaults to the text if empty"`
 	Action   string   `toml:"action" desc:"action to run"`
 	Terminal bool     `toml:"terminal" desc:"runs action in terminal if true"`
 	Icon     string   `toml:"icon" desc:"icon for entry"`
