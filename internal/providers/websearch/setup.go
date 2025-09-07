@@ -25,12 +25,6 @@ var (
 //go:embed README.md
 var readme string
 
-const (
-	ActionCopy   = "copy"
-	ActionSave   = "save"
-	ActionDelete = "delete"
-)
-
 type Config struct {
 	common.Config           `koanf:",squash"`
 	Entries                 []Entry `koanf:"entries" desc:"entries" default:""`
@@ -75,17 +69,22 @@ func PrintDoc() {
 func Cleanup(qid uint32) {
 }
 
-func Activate(qid uint32, identifier, action string, query string) {
+func Activate(qid uint32, identifier, action string, arguments string) {
 	i, _ := strconv.Atoi(identifier)
 
 	for k := range prefixes {
-		if after, ok := strings.CutPrefix(query, k); ok {
-			query = after
+		if after, ok := strings.CutPrefix(arguments, k); ok {
+			arguments = after
 			break
 		}
 	}
 
-	url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(query))
+	splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
+	if len(splits) > 1 {
+		arguments = splits[1]
+	}
+
+	url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(arguments))
 
 	prefix := common.LaunchPrefix("")
 
@@ -105,7 +104,7 @@ func Activate(qid uint32, identifier, action string, query string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.QueryResponse_Item {
+func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	prefix := ""
@@ -134,7 +133,20 @@ func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.Quer
 				Type:       0,
 			}
 
-			entries = append(entries, e)
+			if query != "" {
+				score, pos, start := common.FuzzyScore(query, v.Name, exact)
+
+				e.Score = score
+				e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{
+					Field:     "text",
+					Positions: pos,
+					Start:     start,
+				}
+			}
+
+			if e.Score > config.MinScore || query == "" {
+				entries = append(entries, e)
+			}
 		}
 	} else {
 		for k, v := range config.Entries {
