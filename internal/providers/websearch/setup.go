@@ -12,6 +12,8 @@ import (
 
 	"github.com/abenz1267/elephant/internal/comm/handlers"
 	"github.com/abenz1267/elephant/internal/common"
+	"github.com/abenz1267/elephant/internal/common/history"
+	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
@@ -20,6 +22,9 @@ var (
 	Name       = "websearch"
 	NamePretty = "Websearch"
 	config     *Config
+	results    = providers.QueryData{}
+	prefixes   = make(map[string]int)
+	h          = history.Load(Name)
 )
 
 //go:embed README.md
@@ -29,6 +34,8 @@ type Config struct {
 	common.Config           `koanf:",squash"`
 	Entries                 []Entry `koanf:"entries" desc:"entries" default:""`
 	MaxGlobalItemsToDisplay int     `koanf:"max_global_items_to_display" desc:"will only show the global websearch entry if there are at most X results." default:"1"`
+	History                 bool    `koanf:"history" desc:"make use of history for sorting" default:"true"`
+	HistoryWhenEmpty        bool    `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
 }
 
 type Entry struct {
@@ -39,14 +46,15 @@ type Entry struct {
 	Icon    string `koanf:"icon" desc:"icon to display, fallsback to global" default:""`
 }
 
-var prefixes = make(map[string]int)
-
 func init() {
 	config = &Config{
 		Config: common.Config{
-			Icon: "applications-internet",
+			Icon:     "applications-internet",
+			MinScore: 20,
 		},
 		MaxGlobalItemsToDisplay: 1,
+		History:                 true,
+		HistoryWhenEmpty:        false,
 	}
 
 	common.LoadConfig(Name, config)
@@ -67,6 +75,10 @@ func PrintDoc() {
 }
 
 func Cleanup(qid uint32) {
+	slog.Info(Name, "cleanup", qid)
+	results.Lock()
+	delete(results.Queries, qid)
+	results.Unlock()
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
@@ -102,10 +114,30 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			cmd.Wait()
 		}()
 	}
+
+	if config.History {
+		var last uint32
+
+		for k := range results.Queries[qid] {
+			if k > last {
+				last = k
+			}
+		}
+
+		if last != 0 {
+			h.Save(results.Queries[qid][last], identifier)
+		} else {
+			h.Save("", identifier)
+		}
+	}
 }
 
 func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
+
+	if query != "" {
+		results.GetData(query, qid, iid, exact)
+	}
 
 	prefix := ""
 
@@ -141,6 +173,14 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 					Field:     "text",
 					Positions: pos,
 					Start:     start,
+				}
+			}
+
+			var usageScore int32
+			if config.History {
+				if e.Score > config.MinScore || query == "" && config.HistoryWhenEmpty {
+					usageScore = h.CalcUsageScore(query, e.Identifier)
+					e.Score = e.Score + usageScore
 				}
 			}
 
