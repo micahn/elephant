@@ -8,9 +8,15 @@ import (
 	"syscall"
 
 	"github.com/abenz1267/elephant/internal/common"
+	"github.com/abenz1267/elephant/internal/common/history"
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	toRun := ""
 	prefix := common.LaunchPrefix(config.LaunchPrefix)
 

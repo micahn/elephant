@@ -80,6 +80,11 @@ func Cleanup(qid uint32) {
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	cmd := exec.Command("wl-copy")
 
 	symbol := fmt.Sprintf("'\\u%s'", symbols[identifier])
@@ -140,9 +145,16 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		}
 
 		if usageScore != 0 || score > config.MinScore || query == "" {
+			state := []string{}
+
+			if usageScore != 0 {
+				state = append(state, "history")
+			}
+
 			entries = append(entries, &pb.QueryResponse_Item{
 				Identifier: k,
 				Score:      score,
+				State:      state,
 				Text:       k,
 				Icon:       v,
 				Provider:   Name,

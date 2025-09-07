@@ -133,12 +133,21 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		}
 
 		if (score > config.MinScore || query == "") && (!oi || (oi && v.Installed)) {
+			state := []string{}
+
+			if v.Installed {
+				state = append(state, "installed")
+			} else {
+				state = append(state, "available")
+			}
+
 			entries = append(entries, &pb.QueryResponse_Item{
 				Identifier: k,
 				Text:       v.Name,
 				Type:       pb.QueryResponse_REGULAR,
 				Subtext:    fmt.Sprintf("%s (%s) (%s)", v.Description, v.Version, v.Repository),
 				Provider:   Name,
+				State:      state,
 				Score:      score,
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     s,

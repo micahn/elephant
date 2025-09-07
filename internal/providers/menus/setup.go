@@ -43,6 +43,11 @@ func Cleanup(qid uint32) {
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	var e common.Entry
 	var menu common.Menu
 
@@ -244,6 +249,11 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 			if v.History {
 				if e.Score > v.MinScore || query == "" && v.HistoryWhenEmpty {
 					usageScore = h.CalcUsageScore(initialQuery, e.Identifier)
+
+					if usageScore != 0 {
+						e.State = append(e.State, "history")
+					}
+
 					e.Score = e.Score + usageScore
 				}
 			}

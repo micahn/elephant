@@ -84,12 +84,19 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 		if usageScore != 0 || config.ShowActions && config.ShowGeneric || !config.ShowActions || (config.ShowActions && len(v.Actions) == 0) || query == "" {
 			if score >= config.MinScore || query == "" {
+				state := []string{}
+
+				if usageScore != 0 {
+					state = append(state, "history")
+				}
+
 				entries = append(entries, &pb.QueryResponse_Item{
 					Identifier: k,
 					Text:       v.Name,
 					Type:       pb.QueryResponse_REGULAR,
 					Subtext:    subtext,
 					Icon:       v.Icon,
+					State:      state,
 					Provider:   Name,
 					Score:      score,
 					Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
@@ -154,11 +161,18 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 			if (query == "" && config.ShowActionsWithoutQuery) || (query != "" && config.ShowActions) || usageScore != 0 {
 				if score >= config.MinScore || query == "" {
+					state := []string{}
+
+					if usageScore != 0 {
+						state = append(state, "history")
+					}
+
 					entries = append(entries, &pb.QueryResponse_Item{
 						Identifier: identifier,
 						Score:      score,
 						Text:       a.Name,
 						Type:       pb.QueryResponse_REGULAR,
+						State:      state,
 						Subtext:    subtext,
 						Icon:       a.Icon,
 						Provider:   Name,

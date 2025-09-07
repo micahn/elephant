@@ -20,12 +20,22 @@ type HistoryData struct {
 	Amount   int
 }
 
+const ActionDelete = "erase_history"
+
 // TODO: this is global for every history ... should not be the case. Just a crutch because of gob encoding.
 var mut sync.Mutex
 
 type History struct {
 	Provider string
 	Data     map[string]map[string]*HistoryData
+}
+
+func (h *History) Remove(identifier string) {
+	for _, v := range h.Data {
+		delete(v, identifier)
+	}
+
+	h.writeFile()
 }
 
 func (h *History) Save(query, identifier string) {
@@ -50,6 +60,10 @@ func (h *History) Save(query, identifier string) {
 		}
 	}
 
+	h.writeFile()
+}
+
+func (h *History) writeFile() {
 	var b bytes.Buffer
 	encoder := gob.NewEncoder(&b)
 

@@ -138,6 +138,11 @@ const (
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	bin := ""
 
 	splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)

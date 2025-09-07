@@ -248,6 +248,7 @@ func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.Quer
 				Icon:       config.Icon,
 				Subtext:    v.Input,
 				Provider:   Name,
+				State:      []string{"saved"},
 				Type:       pb.QueryResponse_REGULAR,
 			}
 
@@ -292,7 +293,7 @@ func saveHist() {
 		return
 	}
 
-	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s.gob", Name))), 0755)
+	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s.gob", Name))), 0o755)
 	if err != nil {
 		slog.Error("history", "createdirs", err)
 		return

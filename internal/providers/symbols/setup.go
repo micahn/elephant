@@ -84,6 +84,11 @@ func Cleanup(qid uint32) {
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	cmd := exec.Command("wl-copy")
 	cmd.Stdin = strings.NewReader(symbols[identifier].CP)
 
@@ -152,16 +157,24 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		if config.History {
 			if score > config.MinScore || query == "" && config.HistoryWhenEmpty {
 				usageScore = h.CalcUsageScore(query, k)
+
 				score = score + usageScore
 			}
 		}
 
 		if usageScore != 0 || score > config.MinScore || query == "" {
+			state := []string{}
+
+			if usageScore != 0 {
+				state = append(state, "history")
+			}
+
 			entries = append(entries, &pb.QueryResponse_Item{
 				Identifier: k,
 				Score:      score,
 				Text:       v.Searchable[len(v.Searchable)-1],
 				Icon:       v.CP,
+				State:      state,
 				Provider:   Name,
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     fs,

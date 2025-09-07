@@ -82,6 +82,11 @@ func Cleanup(qid uint32) {
 }
 
 func Activate(qid uint32, identifier, action string, arguments string) {
+	if action == history.ActionDelete {
+		h.Remove(identifier)
+		return
+	}
+
 	i, _ := strconv.Atoi(identifier)
 
 	for k := range prefixes {
@@ -180,6 +185,11 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 			if config.History {
 				if e.Score > config.MinScore || query == "" && config.HistoryWhenEmpty {
 					usageScore = h.CalcUsageScore(query, e.Identifier)
+
+					if usageScore != 0 {
+						e.State = append(e.State, "history")
+					}
+
 					e.Score = e.Score + usageScore
 				}
 			}
