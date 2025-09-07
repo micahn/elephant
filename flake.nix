@@ -39,7 +39,7 @@
         default = self.packages.${pkgs.system}.elephant-with-providers;
 
         # Main elephant binary
-        elephant = pkgs.buildGoModule {
+        elephant = pkgs.buildGo125Module {
           pname = "elephant";
           version = "0.1.0";
 
@@ -56,8 +56,8 @@
             makeWrapper
           ];
 
-          # Build from cmd/elephant.go
-          subPackages = [ "cmd" ];
+          # Build from cmd/elephant/elephant.go
+          subPackages = [ "cmd" "elephant" ];
 
           # Rename the binary from cmd to elephant
           postInstall = ''

@@ -1,6 +1,6 @@
 module github.com/abenz1267/elephant
 
-go 1.25.1
+go 1.25.0
 
 require (
 	github.com/adrg/xdg v0.5.3
