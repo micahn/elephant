@@ -38,7 +38,7 @@ const (
 
 type Config struct {
 	common.Config   `koanf:",squash"`
-	RefreshInterval int    `koanf:"refresh_interval" desc:"refresh database every X minutes" default:"10"`
+	RefreshInterval int    `koanf:"refresh_interval" desc:"refresh database every X minutes. 0 disables the automatic refresh and refreshing requires an elephant restart." default:"60"`
 	InstalledPrefix string `koanf:"installed_prefix" desc:"prefix to use to show only explicitly installed packages" default:"i:"`
 }
 
@@ -56,7 +56,7 @@ func init() {
 			Icon:     "applications-internet",
 			MinScore: 20,
 		},
-		RefreshInterval: 10,
+		RefreshInterval: 60,
 		InstalledPrefix: "i:",
 	}
 
@@ -253,6 +253,11 @@ func refresh() {
 		getInstalled()
 		queryPacman()
 		setupAUR()
+
+		if config.RefreshInterval == 0 {
+			break
+		}
+
 		time.Sleep(time.Duration(config.RefreshInterval) * time.Minute)
 	}
 }
