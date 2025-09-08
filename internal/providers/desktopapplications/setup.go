@@ -55,7 +55,7 @@ func loadpinned() []string {
 		} else {
 			decoder := gob.NewDecoder(bytes.NewReader(f))
 
-			err = decoder.Decode(&h)
+			err = decoder.Decode(&pinned)
 			if err != nil {
 				slog.Error("pinned", "decoding", err)
 			}
