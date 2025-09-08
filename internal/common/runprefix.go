@@ -14,7 +14,7 @@ func InitRunPrefix() {
 		xdgTerminalExec, err := exec.LookPath("xdg-terminal-exec")
 		if err == nil && xdgTerminalExec != "" {
 			runPrefix = "app2unit"
-			slog.Info("config", "runprefix", runPrefix)
+			slog.Info("config", "runprefix autodetect", runPrefix)
 			return
 		}
 	}
@@ -25,7 +25,7 @@ func InitRunPrefix() {
 		err := cmd.Run()
 		if err == nil {
 			runPrefix = "uwsm app --"
-			slog.Info("config", "runprefix", runPrefix)
+			slog.Info("config", "runprefix autodetect", runPrefix)
 			return
 		}
 	}
@@ -35,12 +35,12 @@ func InitRunPrefix() {
 		systemdrun, err := exec.LookPath("systemd-run")
 		if err == nil && systemdrun != "" {
 			runPrefix = "systemd-run --user"
-			slog.Info("config", "runprefix", runPrefix)
+			slog.Info("config", "runprefix autodetect", runPrefix)
 			return
 		}
 	}
 
-	slog.Info("config", "runprefix", "<empty>")
+	slog.Info("config", "runprefix autodetect", "<empty>")
 }
 
 func LaunchPrefix(override string) string {
