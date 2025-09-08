@@ -224,6 +224,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 			s2, p2, ss2 := common.FuzzyScore(query, v.Alias, exact)
 
 			if s2 > score {
+				e.Text = v.Alias
 				score = s2
 				positions = p2
 				start = ss2
