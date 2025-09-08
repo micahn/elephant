@@ -152,10 +152,7 @@ Elephant uses a configuration directory structure:
 ~/.config/elephant/
 ├── elephant.toml        # Main configuration
 ├── .env                 # Environment variables
-└── providers/           # Provider plugins
-    ├── files.so
-    ├── desktopapplications.so
-    └── ...
+└── <provider>.toml      # Provider config
 ```
 
 ## API & Integration
