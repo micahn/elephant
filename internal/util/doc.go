@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
 )
 
@@ -16,6 +17,10 @@ func GenerateDoc() {
 	fmt.Println("A service providing various datasources which can be triggered to perform actions.")
 	fmt.Println()
 	fmt.Println("Run `elephant -h` to get an overview of the available commandline flags and actions.")
+
+	fmt.Println("## Elephant Configuration")
+
+	PrintConfig(common.ElephantConfig{}, "Elephant")
 
 	fmt.Println("## Provider Configuration")
 

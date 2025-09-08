@@ -103,7 +103,6 @@ func main() {
 
 					providers.Load()
 
-					providers.Load()
 					util.GenerateDoc()
 					return nil
 				},
