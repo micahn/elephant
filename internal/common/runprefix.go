@@ -9,6 +9,10 @@ import (
 var runPrefix = ""
 
 func InitRunPrefix() {
+	if !elephantConfig.AutoDetectLaunchPrefix {
+		return
+	}
+
 	app2unit, err := exec.LookPath("app2unit")
 	if err == nil && app2unit != "" {
 		xdgTerminalExec, err := exec.LookPath("xdg-terminal-exec")
@@ -44,10 +48,6 @@ func InitRunPrefix() {
 }
 
 func LaunchPrefix(override string) string {
-	if override == "CLEAR" {
-		return ""
-	}
-
 	if override != "" {
 		return override
 	}

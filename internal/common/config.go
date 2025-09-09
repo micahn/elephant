@@ -17,14 +17,16 @@ type Config struct {
 }
 
 type ElephantConfig struct {
-	ArgumentDelimiter string `koanf:"argument_delimited" desc:"global delimiter for arguments" default:"#"`
+	ArgumentDelimiter      string `koanf:"argument_delimited" desc:"global delimiter for arguments" default:"#"`
+	AutoDetectLaunchPrefix bool   `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
 }
 
 var elephantConfig ElephantConfig
 
 func LoadGlobalConfig() {
 	elephantConfig = ElephantConfig{
-		ArgumentDelimiter: "#",
+		ArgumentDelimiter:      "#",
+		AutoDetectLaunchPrefix: true,
 	}
 
 	LoadConfig("elephant", elephantConfig)

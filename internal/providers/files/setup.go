@@ -44,7 +44,7 @@ var (
 
 type Config struct {
 	common.Config `koanf:",squash"`
-	LaunchPrefix  string `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set. 'CLEAR' to not prefix." default:""`
+	LaunchPrefix  string `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
 }
 
 func init() {
