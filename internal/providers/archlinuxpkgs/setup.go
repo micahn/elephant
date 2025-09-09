@@ -141,9 +141,15 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 				state = append(state, "available")
 			}
 
+			name := v.Name
+
+			if !oi && v.Installed {
+				name = fmt.Sprintf("%s (installed)", name)
+			}
+
 			entries = append(entries, &pb.QueryResponse_Item{
 				Identifier: k,
-				Text:       v.Name,
+				Text:       name,
 				Type:       pb.QueryResponse_REGULAR,
 				Subtext:    fmt.Sprintf("%s (%s) (%s)", v.Description, v.Version, v.Repository),
 				Provider:   Name,
