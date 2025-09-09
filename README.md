@@ -230,10 +230,6 @@ nix develop
 
 Please ensure your code follows Go best practices and includes appropriate documentation.
 
-## Current Status
-
-⚠️ **Work in Progress**: This project is in active development and the API may change. Use with caution in production environments.
-
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
