@@ -50,7 +50,7 @@ type Entry struct {
 	Installed   bool
 }
 
-func init() {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-internet",

@@ -59,7 +59,7 @@ var (
 	results     = make(map[uint32]map[string]*pb.QueryResponse_Item)
 )
 
-func init() {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon: "accessories-calculator",

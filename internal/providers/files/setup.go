@@ -47,7 +47,7 @@ type Config struct {
 	LaunchPrefix  string `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
 }
 
-func init() {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{

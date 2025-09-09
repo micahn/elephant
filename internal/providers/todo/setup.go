@@ -77,7 +77,7 @@ func saveItems() {
 		return
 	}
 
-	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s.gob", Name))), 0755)
+	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s.gob", Name))), 0o755)
 	if err != nil {
 		slog.Error(Name, "savedir", err)
 		return
@@ -141,7 +141,7 @@ func (i *Item) fromQuery(query string) {
 	}
 }
 
-func init() {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "checkbox-checked",

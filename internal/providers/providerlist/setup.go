@@ -28,7 +28,7 @@ type Config struct {
 	Hidden        []string `koanf:"hidden" desc:"hidden providers" default:"<empty>"`
 }
 
-func init() {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-other",

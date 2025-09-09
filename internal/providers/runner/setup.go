@@ -56,7 +56,7 @@ type Item struct {
 	Alias      string
 }
 
-func init() {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{

@@ -37,7 +37,7 @@ type Config struct {
 
 var config *Config
 
-func init() {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{

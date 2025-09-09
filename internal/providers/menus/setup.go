@@ -35,6 +35,8 @@ func PrintDoc() {
 	util.PrintConfig(common.Menu{}, Name)
 }
 
+func Setup() {}
+
 func Cleanup(qid uint32) {
 	slog.Info(Name, "cleanup", qid)
 	results.Lock()

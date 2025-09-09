@@ -46,7 +46,7 @@ type Entry struct {
 	Icon    string `koanf:"icon" desc:"icon to display, fallsback to global" default:""`
 }
 
-func init() {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-internet",

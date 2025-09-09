@@ -65,7 +65,7 @@ func loadpinned() []string {
 	return pinned
 }
 
-func init() {
+func Setup() {
 	start := time.Now()
 	config = &Config{
 		Config: common.Config{

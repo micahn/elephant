@@ -53,7 +53,7 @@ type Config struct {
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 }
 
-func init() {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{

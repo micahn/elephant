@@ -64,7 +64,7 @@ func main() {
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
-					providers.Load()
+					providers.Load(false)
 
 					for _, v := range providers.Providers {
 						if *v.Name == "menus" {
@@ -101,7 +101,7 @@ func main() {
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
-					providers.Load()
+					providers.Load(false)
 
 					util.GenerateDoc()
 					return nil
@@ -175,7 +175,7 @@ func main() {
 
 			common.InitRunPrefix()
 
-			providers.Load()
+			providers.Load(true)
 
 			slog.Info("elephant", "startup", time.Since(start))
 

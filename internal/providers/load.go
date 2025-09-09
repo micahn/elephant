@@ -18,8 +18,9 @@ import (
 
 type Provider struct {
 	Name       *string
-	NamePretty *string
 	PrintDoc   func()
+	NamePretty *string
+	Setup      func()
 	Icon       func() string
 	Cleanup    func(qid uint32)
 	Activate   func(qid uint32, identifier, action string, arguments string)
@@ -32,7 +33,7 @@ var (
 	AsyncChannels  = make(map[uint32]map[uint32]chan *pb.QueryResponse_Item)
 )
 
-func Load() {
+func Load(setup bool) {
 	start := time.Now()
 	common.LoadMenus()
 	common.LoadGlobalConfig()
@@ -105,14 +106,24 @@ func Load() {
 					slog.Error("providers", "load", err, "provider", path)
 				}
 
+				setupFunc, err := p.Lookup("Setup")
+				if err != nil {
+					slog.Error("providers", "load", err, "provider", path)
+				}
+
 				provider := Provider{
 					Icon:       iconFunc.(func() string),
+					Setup:      setupFunc.(func()),
 					Name:       name.(*string),
 					Cleanup:    cleanupFunc.(func(uint32)),
 					Activate:   activateFunc.(func(uint32, string, string, string)),
 					Query:      queryFunc.(func(uint32, uint32, string, bool, bool) []*pb.QueryResponse_Item),
 					NamePretty: namePretty.(*string),
 					PrintDoc:   printDocFunc.(func()),
+				}
+
+				if setup {
+					provider.Setup()
 				}
 
 				Providers[*provider.Name] = provider
