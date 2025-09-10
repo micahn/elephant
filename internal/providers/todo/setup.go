@@ -58,12 +58,18 @@ const (
 	ActionClear      = "clear"
 )
 
+const (
+	UrgencyNormal   = "normal"
+	UrgencyCritical = "critical"
+)
+
 type Item struct {
 	Text      string
 	Scheduled time.Time
 	Started   time.Time
 	Finished  time.Time
 	State     string
+	Urgency   string
 	Notified  bool
 }
 
@@ -91,6 +97,13 @@ func saveItems() {
 
 func (i *Item) fromQuery(query string) {
 	query = strings.TrimSpace(strings.TrimPrefix(query, config.CreatePrefix))
+
+	i.Urgency = UrgencyNormal
+
+	if strings.HasSuffix(query, "!") {
+		query = strings.TrimSuffix(query, "!")
+		i.Urgency = UrgencyCritical
+	}
 
 	if strings.HasPrefix(query, "in ") || strings.HasPrefix(query, "at ") {
 		splits := strings.SplitN(query, " ", 3)
@@ -180,7 +193,7 @@ func notify() {
 			if v.Scheduled.Equal(now) || v.Scheduled.Before(now) {
 
 				body := strings.ReplaceAll(config.Body, "%TASK%", v.Text)
-				cmd := exec.Command("notify-send", config.Title, body)
+				cmd := exec.Command("notify-send", "-a", "elephant", "-u", v.Urgency, config.Title, body)
 
 				err := cmd.Start()
 				if err != nil {
@@ -362,6 +375,8 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		if e.Score > highestScore {
 			highestScore = e.Score
 		}
+
+		e.State = append(e.State, v.Urgency)
 
 		entries = append(entries, e)
 	}
