@@ -28,6 +28,8 @@ func main() {
 	var config string
 	var debug bool
 
+	common.LoadGlobalConfig()
+
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan,
 		syscall.SIGHUP,
