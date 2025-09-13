@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/internal/common"
@@ -23,6 +24,7 @@ var (
 	NamePretty = "Arch Linux Packages"
 	config     *Config
 	isSetup    = false
+	mut        sync.Mutex
 	entryMap   = map[string]Entry{}
 	installed  = []string{}
 	command    = "yay -S"
@@ -110,15 +112,15 @@ func Activate(qid uint32, identifier, action string, query string) {
 func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
+	if !isSetup {
+		return entries
+	}
+
 	oi := false
 
 	if strings.HasPrefix(query, config.InstalledPrefix) {
 		oi = true
 		query = strings.TrimPrefix(query, config.InstalledPrefix)
-	}
-
-	if !isSetup {
-		return entries
 	}
 
 	for k, v := range entryMap {
@@ -236,8 +238,6 @@ func setupAUR() {
 
 		entryMap[md5str] = e
 	}
-
-	isSetup = true
 }
 
 func getInstalled() {
@@ -254,11 +254,14 @@ func getInstalled() {
 
 func refresh() {
 	for {
-		isSetup = false
+		mut.Lock()
 		entryMap = make(map[string]Entry)
 		getInstalled()
 		queryPacman()
 		setupAUR()
+		mut.Unlock()
+
+		isSetup = true
 
 		if config.RefreshInterval == 0 {
 			break
