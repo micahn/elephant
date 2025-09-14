@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/internal/common"
@@ -24,13 +25,14 @@ import (
 )
 
 var (
-	Name       = "clipboard"
-	NamePretty = "Clipboard"
-	file       = common.CacheFile("clipboard.gob")
-	imgTypes   = make(map[string]string)
-	config     *Config
-	history    map[string]*Item
-	imagesOnly = false
+	Name             = "clipboard"
+	NamePretty       = "Clipboard"
+	file             = common.CacheFile("clipboard.gob")
+	imgTypes         = make(map[string]string)
+	config           *Config
+	clipboardhistory map[string]*Item
+	mu               sync.Mutex
+	imagesOnly       = false
 )
 
 //go:embed README.md
@@ -76,7 +78,7 @@ func Setup() {
 
 	go handleChange()
 
-	slog.Info(Name, "history", len(history), "time", time.Since(start))
+	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
 }
 
 func loadFromFile() {
@@ -87,13 +89,13 @@ func loadFromFile() {
 		} else {
 			decoder := gob.NewDecoder(bytes.NewReader(f))
 
-			err = decoder.Decode(&history)
+			err = decoder.Decode(&clipboardhistory)
 			if err != nil {
 				slog.Error("history", "decoding", err)
 			}
 		}
 	} else {
-		history = map[string]*Item{}
+		clipboardhistory = map[string]*Item{}
 	}
 }
 
@@ -101,7 +103,7 @@ func saveToFile() {
 	var b bytes.Buffer
 	encoder := gob.NewEncoder(&b)
 
-	err := encoder.Encode(history)
+	err := encoder.Encode(clipboardhistory)
 	if err != nil {
 		slog.Error(Name, "encode", err)
 		return
@@ -177,19 +179,19 @@ func update() {
 	md5 := md5.Sum(out)
 	md5str := hex.EncodeToString(md5[:])
 
-	if _, ok := history[md5str]; ok {
+	if _, ok := clipboardhistory[md5str]; ok {
 		return
 	}
 
 	if !isImg {
-		history[md5str] = &Item{
+		clipboardhistory[md5str] = &Item{
 			Content: string(out),
 			Time:    time.Now(),
 			State:   StateEditable,
 		}
 	} else {
 		if file := saveImg(out, imgTypes[mt[0]]); file != "" {
-			history[md5str] = &Item{
+			clipboardhistory[md5str] = &Item{
 				Img:      file,
 				Mimetype: mt[0],
 				Time:     time.Now(),
@@ -198,7 +200,7 @@ func update() {
 		}
 	}
 
-	if len(history) > config.MaxItems {
+	if len(clipboardhistory) > config.MaxItems {
 		trim()
 		saveToFile()
 
@@ -212,18 +214,18 @@ func trim() {
 	oldest := ""
 	oldestTime := time.Now()
 
-	for k, v := range history {
+	for k, v := range clipboardhistory {
 		if v.Time.Before(oldestTime) {
 			oldest = k
 			oldestTime = v.Time
 		}
 	}
 
-	if history[oldest].Img != "" {
-		_ = os.Remove(history[oldest].Img)
+	if clipboardhistory[oldest].Img != "" {
+		_ = os.Remove(clipboardhistory[oldest].Img)
 	}
 
-	delete(history, oldest)
+	delete(clipboardhistory, oldest)
 }
 
 func saveImg(b []byte, ext string) string {
@@ -278,7 +280,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 		imagesOnly = !imagesOnly
 		return
 	case ActionEdit:
-		item := history[identifier]
+		item := clipboardhistory[identifier]
 		if item.State != StateEditable {
 			return
 		}
@@ -339,17 +341,23 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 			saveToFile()
 		}
 	case ActionRemove:
-		if history[identifier].Img != "" {
-			_ = os.Remove(history[identifier].Img)
+		mu.Lock()
+
+		if _, ok := clipboardhistory[identifier]; ok {
+			if clipboardhistory[identifier].Img != "" {
+				_ = os.Remove(clipboardhistory[identifier].Img)
+			}
+
+			delete(clipboardhistory, identifier)
+
+			saveToFile()
 		}
 
-		delete(history, identifier)
-
-		saveToFile()
+		mu.Unlock()
 	case ActionCopy:
 		cmd := exec.Command("wl-copy")
 
-		item := history[identifier]
+		item := clipboardhistory[identifier]
 		if item.Img != "" {
 			f, _ := os.ReadFile(item.Img)
 			cmd.Stdin = bytes.NewReader(f)
@@ -374,7 +382,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
-	for k, v := range history {
+	for k, v := range clipboardhistory {
 		if imagesOnly && v.Img == "" {
 			continue
 		}
