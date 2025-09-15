@@ -50,7 +50,7 @@ func loadFiles() {
 
 		if err := fastwalk.Walk(&conf, root, walkFunction); err != nil {
 			slog.Error(Name, "walk", err)
-			os.Exit(1)
+			continue
 		}
 	}
 
@@ -81,8 +81,7 @@ func setVars() {
 
 func walkFunction(path string, d fs.DirEntry, err error) error {
 	if err != nil {
-		slog.Error(Name, "walk", err)
-		os.Exit(1)
+		return err
 	}
 
 	filesMu.RLock()
