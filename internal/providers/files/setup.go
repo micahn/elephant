@@ -74,6 +74,34 @@ func Setup() {
 		log.Fatal(err)
 	}
 
+	deleteChan := make(chan struct{})
+
+	go func() {
+		timer := time.NewTimer(time.Second * 5)
+		do := false
+
+		for {
+			select {
+			case <-deleteChan:
+				timer.Reset(time.Second * 2)
+				do = true
+			case <-timer.C:
+				if do {
+					pm.Lock()
+					// this is ghetto, but paths aren't suffixed with `/`, so we can't just check for a path-prefix
+					for k, v := range paths {
+						if _, err := os.Stat(v.path); err != nil {
+							delete(paths, k)
+						}
+					}
+					pm.Unlock()
+
+					do = false
+				}
+			}
+		}
+	}()
+
 	go func() {
 		for {
 			select {
@@ -83,14 +111,7 @@ func Setup() {
 				}
 
 				if event.Op == fsnotify.Remove || event.Op == fsnotify.Rename {
-					pm.Lock()
-					// this is ghetto, but paths aren't suffixed with `/`, so we can't just check for a path-prefix
-					for k, v := range paths {
-						if _, err := os.Stat(v.path); err != nil {
-							delete(paths, k)
-						}
-					}
-					pm.Unlock()
+					deleteChan <- struct{}{}
 				}
 
 				if info, err := times.Stat(event.Name); err == nil {
