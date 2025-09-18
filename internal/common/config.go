@@ -4,7 +4,9 @@ package common
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 
+	"github.com/joho/godotenv"
 	"github.com/knadh/koanf/parsers/toml/v2"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/structs"
@@ -17,25 +19,44 @@ type Config struct {
 }
 
 type ElephantConfig struct {
-	ArgumentDelimiter      string `koanf:"argument_delimited" desc:"global delimiter for arguments" default:"#"`
+	ArgumentDelimiter      string `koanf:"argument_delimiter" desc:"global delimiter for arguments" default:"#"`
 	AutoDetectLaunchPrefix bool   `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
 	OverloadLocalEnv       bool   `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
 }
 
-var elephantConfig ElephantConfig
+var elephantConfig *ElephantConfig
 
 func LoadGlobalConfig() {
-	elephantConfig = ElephantConfig{
+	elephantConfig = &ElephantConfig{
 		ArgumentDelimiter:      "#",
 		AutoDetectLaunchPrefix: true,
 		OverloadLocalEnv:       false,
 	}
 
 	LoadConfig("elephant", elephantConfig)
+
+	envFile := filepath.Join(ConfigDir(), ".env")
+
+	if FileExists(envFile) {
+		var err error
+
+		if elephantConfig.OverloadLocalEnv {
+			err = godotenv.Overload(envFile)
+		} else {
+			err = godotenv.Load(envFile)
+		}
+
+		if err != nil {
+			slog.Error("elephant", "localenv", err)
+			return
+		}
+
+		slog.Info("elephant", "localenv", "loaded")
+	}
 }
 
 func GetElephantConfig() *ElephantConfig {
-	return &elephantConfig
+	return elephantConfig
 }
 
 func LoadConfig(provider string, config any) {

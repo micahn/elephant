@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
-	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v3"
 )
 
@@ -173,8 +171,6 @@ func main() {
 				slog.SetDefault(logger)
 			}
 
-			loadLocalEnv()
-
 			common.InitRunPrefix()
 
 			providers.Load(true)
@@ -189,26 +185,5 @@ func main() {
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
-	}
-}
-
-func loadLocalEnv() {
-	envFile := filepath.Join(common.ConfigDir(), ".env")
-
-	if common.FileExists(envFile) {
-		var err error
-
-		if common.GetElephantConfig().OverloadLocalEnv {
-			err = godotenv.Overload(envFile)
-		} else {
-			err = godotenv.Load(envFile)
-		}
-
-		if err != nil {
-			slog.Error("elephant", "localenv", err)
-			return
-		}
-
-		slog.Info("elephant", "localenv", "loaded")
 	}
 }
