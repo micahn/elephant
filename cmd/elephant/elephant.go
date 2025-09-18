@@ -196,7 +196,14 @@ func loadLocalEnv() {
 	envFile := filepath.Join(common.ConfigDir(), ".env")
 
 	if common.FileExists(envFile) {
-		err := godotenv.Load(envFile)
+		var err error
+
+		if common.GetElephantConfig().OverloadLocalEnv {
+			err = godotenv.Overload(envFile)
+		} else {
+			err = godotenv.Load(envFile)
+		}
+
 		if err != nil {
 			slog.Error("elephant", "localenv", err)
 			return
