@@ -21,6 +21,7 @@ import (
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
+	"github.com/charlievieth/fastwalk"
 )
 
 var (
@@ -73,23 +74,27 @@ func Setup() {
 	if len(config.Explicits) == 0 {
 		bins := []string{}
 
-		for p := range strings.SplitSeq(os.Getenv("PATH"), ":") {
-			filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
-				if d != nil && d.IsDir() {
-					return nil
-				}
+		conf := fastwalk.Config{
+			Follow: true,
+		}
 
+		for p := range strings.SplitSeq(os.Getenv("PATH"), ":") {
+			walkFn := func(path string, d fs.DirEntry, err error) error {
 				info, serr := os.Stat(path)
 				if info == nil || serr != nil {
 					return nil
 				}
 
-				if info.Mode()&0o111 != 0 {
+				if info.Mode()&0o111 != 0 && !d.IsDir() {
 					bins = append(bins, filepath.Base(path))
 				}
 
 				return nil
-			})
+			}
+
+			if err := fastwalk.Walk(&conf, p, walkFn); err != nil {
+				slog.Error("runner", "load", err)
+			}
 		}
 
 		bins = slices.Compact(bins)
