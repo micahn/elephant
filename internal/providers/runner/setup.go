@@ -97,6 +97,7 @@ func Setup() {
 			}
 		}
 
+		slices.Sort(bins)
 		bins = slices.Compact(bins)
 
 		for _, v := range bins {
