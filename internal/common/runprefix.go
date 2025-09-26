@@ -28,7 +28,7 @@ func InitRunPrefix() {
 		cmd := exec.Command(uwsm, "check", "is-active")
 		err := cmd.Run()
 		if err == nil {
-			runPrefix = "uwsm app --"
+			runPrefix = "uwsm-app --"
 			slog.Info("config", "runprefix autodetect", runPrefix)
 			return
 		}
