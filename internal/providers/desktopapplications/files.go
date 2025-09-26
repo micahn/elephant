@@ -245,11 +245,12 @@ func handleFileUpdate(path string) {
 func handleFileRemove(path string) {
 	originPath, sym := isSymlink(path)
 	defer slog.Debug(Name, "file_removed", path)
-	if sym {
-		filesMu.Lock()
-		delete(files, path)
-		filesMu.Unlock()
 
+	filesMu.Lock()
+	delete(files, filepath.Base(path))
+	filesMu.Unlock()
+
+	if sym {
 		delete(symlinkToReal, path)
 
 		for i, s := range realToSymlink[originPath] {
