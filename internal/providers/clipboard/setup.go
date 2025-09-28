@@ -179,7 +179,8 @@ func update() {
 	md5 := md5.Sum(out)
 	md5str := hex.EncodeToString(md5[:])
 
-	if _, ok := clipboardhistory[md5str]; ok {
+	if val, ok := clipboardhistory[md5str]; ok {
+		val.Time = time.Now()
 		return
 	}
 
