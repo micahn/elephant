@@ -5,8 +5,10 @@ import (
 	_ "embed"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/abenz1267/elephant/internal/common"
@@ -24,6 +26,7 @@ var (
 	h          = history.Load(Name)
 	pins       = loadpinned()
 	config     *Config
+	br         = []*regexp.Regexp{}
 )
 
 //go:embed README.md
@@ -43,6 +46,7 @@ type Config struct {
 
 	IconPlaceholder string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
 	Aliases         map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
+	Blacklist       []string          `koanf:"blacklist" desc:"blacklist desktop files from being parsed. Regexp." default:"<empty>"`
 }
 
 func loadpinned() []string {
@@ -87,9 +91,21 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	parseRegexp()
 	loadFiles()
 
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
+}
+
+func parseRegexp() {
+	for _, v := range config.Blacklist {
+		r, err := regexp.Compile(v)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		br = append(br, r)
+	}
 }
 
 func Icon() string {

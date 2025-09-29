@@ -84,6 +84,16 @@ func walkFunction(path string, d fs.DirEntry, err error) error {
 		return err
 	}
 
+	if filepath.Ext(path) == ".desktop" {
+		check := strings.TrimSuffix(filepath.Base(path), ".desktop")
+
+		for _, v := range br {
+			if v.MatchString(check) {
+				return nil
+			}
+		}
+	}
+
 	filesMu.RLock()
 	_, exists := files[filepath.Base(path)]
 	filesMu.RUnlock()
