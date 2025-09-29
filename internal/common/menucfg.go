@@ -109,6 +109,10 @@ func LoadMenus() {
 				m.Entries[k].Menu = m.Name
 				m.Entries[k].Identifier = v.CreateIdentifier()
 
+				if v.Value == "" && v.Async == "" {
+					m.Entries[k].Value = v.Text
+				}
+
 				if v.SubMenu != "" {
 					m.Entries[k].Identifier = fmt.Sprintf("keepopen:menus:%s", v.SubMenu)
 				}

@@ -215,12 +215,15 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 			}
 
 			if me.Async != "" {
+				v.Entries[k].Value = ""
+
 				go func() {
 					cmd := exec.Command("sh", "-c", me.Async)
 					out, err := cmd.CombinedOutput()
 
 					if err == nil {
 						e.Text = strings.TrimSpace(string(out))
+						v.Entries[k].Value = e.Text
 					} else {
 						e.Text = "%DELETE%"
 					}
