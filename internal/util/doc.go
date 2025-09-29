@@ -20,7 +20,7 @@ func GenerateDoc() {
 
 	fmt.Println("## Elephant Configuration")
 
-	PrintConfig(common.ElephantConfig{}, "Elephant")
+	PrintConfig(common.ElephantConfig{}, "elephant")
 
 	fmt.Println("## Provider Configuration")
 
