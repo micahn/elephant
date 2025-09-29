@@ -163,6 +163,11 @@ func update() {
 	}
 
 	mt := getMimetypes()
+
+	if len(mt) == 0 {
+		return
+	}
+
 	isImg := false
 
 	for _, v := range mt {
@@ -436,8 +441,9 @@ func getMimetypes() []string {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Println(err)
 		log.Println(string(out))
-		log.Panic(err)
+		return []string{}
 	}
 
 	return strings.Fields(string(out))
