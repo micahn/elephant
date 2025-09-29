@@ -101,7 +101,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		arguments = splits[1]
 	}
 
-	url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(arguments))
+	url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(arguments)))
 
 	prefix := common.LaunchPrefix("")
 
