@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -33,6 +32,7 @@ type Config struct {
 	Locale           string `koanf:"locale" desc:"locale to use for symbols" default:"en"`
 	History          bool   `koanf:"history" desc:"make use of history for sorting" default:"true"`
 	HistoryWhenEmpty bool   `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
+	Command          string `koanf:"command" desc:"default command to be executed. supports %RESULT%." default:"wl-copy"`
 }
 
 var config *Config
@@ -48,6 +48,7 @@ func Setup() {
 		Locale:           "en",
 		History:          true,
 		HistoryWhenEmpty: false,
+		Command:          "wl-copy",
 	}
 
 	common.LoadConfig(Name, config)
@@ -89,8 +90,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		return
 	}
 
-	cmd := exec.Command("wl-copy")
-	cmd.Stdin = strings.NewReader(symbols[identifier].CP)
+	cmd := common.ReplaceResultOrStdinCmd(config.Command, symbols[identifier].CP)
 
 	err := cmd.Start()
 	if err != nil {

@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +35,7 @@ type Config struct {
 	Locale           string `koanf:"locale" desc:"locale to use for symbols" default:"en"`
 	History          bool   `koanf:"history" desc:"make use of history for sorting" default:"true"`
 	HistoryWhenEmpty bool   `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
+	Command          string `koanf:"command" desc:"default command to be executed. supports %RESULT%." default:"wl-copy"`
 }
 
 var (
@@ -54,6 +54,7 @@ func Setup() {
 		Locale:           "en",
 		History:          true,
 		HistoryWhenEmpty: false,
+		Command:          "wl-copy",
 	}
 
 	common.LoadConfig(Name, config)
@@ -85,8 +86,6 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		return
 	}
 
-	cmd := exec.Command("wl-copy")
-
 	symbol := fmt.Sprintf("'\\u%s'", symbols[identifier])
 
 	toUse, err := strconv.Unquote(symbol)
@@ -96,7 +95,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 	}
 
-	cmd.Stdin = strings.NewReader(toUse)
+	cmd := common.ReplaceResultOrStdinCmd(config.Command, toUse)
 
 	err = cmd.Start()
 	if err != nil {

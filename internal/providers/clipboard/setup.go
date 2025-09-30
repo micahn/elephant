@@ -53,6 +53,7 @@ type Config struct {
 	MaxItems       int    `koanf:"max_items" desc:"max amount of clipboard history items" default:"100"`
 	ImageEditorCmd string `koanf:"image_editor_cmd" desc:"editor to use for images. use '%FILE%' as placeholder for file path." default:""`
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
+	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
 }
 
 func Setup() {
@@ -66,6 +67,7 @@ func Setup() {
 		MaxItems:       100,
 		ImageEditorCmd: "",
 		TextEditorCmd:  "",
+		Command:        "wl-copy",
 	}
 
 	common.LoadConfig(Name, config)
@@ -379,7 +381,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 
 		mu.Unlock()
 	case ActionCopy:
-		cmd := exec.Command("wl-copy")
+		cmd := exec.Command("sh", "-c", config.Command)
 
 		item := clipboardhistory[identifier]
 		if item.Img != "" {
