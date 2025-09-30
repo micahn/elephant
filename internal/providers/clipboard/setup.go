@@ -147,7 +147,7 @@ func handleChange() {
 	}
 }
 
-var ignoreMimetypes = []string{"chromium/x-source-url", "chromium/x-internal-source-rfh-token", "text/_moz_htmlinfo", "text/_moz_htmlcontext", "x-kde-passwordManagerHint"}
+var ignoreMimetypes = []string{"chromium/x-internal-source-rfh-token", "text/_moz_htmlinfo", "text/_moz_htmlcontext", "x-kde-passwordManagerHint"}
 
 func update() {
 	cmd := exec.Command("wl-paste", "-n")
