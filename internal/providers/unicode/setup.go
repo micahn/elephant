@@ -86,20 +86,18 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		return
 	}
 
-	symbol := fmt.Sprintf("'\\u%s'", symbols[identifier])
-
-	toUse, err := strconv.Unquote(symbol)
+	codePoint, err := strconv.ParseInt(symbols[identifier], 16, 32)
 	if err != nil {
-		slog.Error(Name, "activate", err)
+		slog.Error(Name, "activate parse unicode", err)
 		return
-
 	}
+	toUse := string(rune(codePoint))
 
 	cmd := common.ReplaceResultOrStdinCmd(config.Command, toUse)
 
 	err = cmd.Start()
 	if err != nil {
-		slog.Error(Name, "activate", err)
+		slog.Error(Name, "activate run cmd", err)
 		return
 	} else {
 		go func() {
