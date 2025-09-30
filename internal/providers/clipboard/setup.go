@@ -73,6 +73,7 @@ func Setup() {
 	imgTypes["image/png"] = "png"
 	imgTypes["image/jpg"] = "jpg"
 	imgTypes["image/jpeg"] = "jpeg"
+	imgTypes["image/webm"] = "webm"
 
 	loadFromFile()
 
@@ -147,7 +148,11 @@ func handleChange() {
 	}
 }
 
-var ignoreMimetypes = []string{"chromium/x-internal-source-rfh-token", "text/_moz_htmlinfo", "text/_moz_htmlcontext", "x-kde-passwordManagerHint"}
+var (
+	ignoreMimetypes   = []string{"x-kde-passwordManagerHint"}
+	firefoxMimetypes  = []string{"text/_moz_htmlcontext"}
+	chromiumMimetypes = []string{"chromium/x-source-url"}
+)
 
 func update() {
 	cmd := exec.Command("wl-paste", "-n")
@@ -169,16 +174,29 @@ func update() {
 	}
 
 	isImg := false
+	isFF, isChrome := false, false
 
 	for _, v := range mt {
 		if slices.Contains(ignoreMimetypes, v) {
 			return
 		}
 
+		if slices.Contains(firefoxMimetypes, v) {
+			isFF = true
+		}
+
+		if slices.Contains(chromiumMimetypes, v) {
+			isChrome = true
+		}
+
 		if _, ok := imgTypes[v]; ok {
 			isImg = true
-			break
 		}
+	}
+
+	if (isFF || isChrome) && isImg {
+		slog.Debug(Name, "error", "can't save images from browsers")
+		return
 	}
 
 	md5 := md5.Sum(out)
