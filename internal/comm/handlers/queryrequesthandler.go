@@ -195,7 +195,7 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		}
 
 		if req.Query != "" && currentIteration != queries[cid][currentQID].Iteration.Load() {
-			slog.Info("providers", "results", "aborting", "qid", currentQID, "iid", currentIteration)
+			slog.Info("queryrequesthandler", "results", "aborting", "qid", currentQID, "iid", currentIteration)
 			return
 		}
 
@@ -207,7 +207,8 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 
 		b, err := proto.Marshal(&req)
 		if err != nil {
-			panic(err)
+			slog.Error("queryrequesthandler", "marshal", err)
+			continue
 		}
 
 		var buffer bytes.Buffer

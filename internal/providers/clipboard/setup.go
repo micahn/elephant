@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/util"
@@ -207,6 +208,10 @@ func update() {
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
 		return
+	}
+
+	if !isImg && !utf8.Valid(out) {
+		slog.Error(Name, "updating", "string content contains invalid UTF-8")
 	}
 
 	if !isImg {
