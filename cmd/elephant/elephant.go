@@ -7,7 +7,9 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
+	"github.com/adrg/xdg"
 	"github.com/urfave/cli/v3"
 )
 
@@ -47,6 +50,75 @@ func main() {
 		Usage:                  "Data provider and executor",
 		UseShortOptionHandling: true,
 		Commands: []*cli.Command{
+			{
+				Name:  "service",
+				Usage: "manage the user systemd service",
+				Commands: []*cli.Command{
+					{
+						Name:  "enable",
+						Usage: "enables the systemd service",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							h := xdg.ConfigHome
+							file := filepath.Join(h, "systemd", "user", "elephant.service")
+							os.MkdirAll(filepath.Dir(file), 0o755)
+
+							data := `
+[Unit]
+Description=Elephant
+After=xdg-desktop-autostart.target
+
+[Service]
+Type=simple
+ExecStart=elephant
+Restart=on-failure
+
+[Install]
+WantedBy=xdg-desktop-autostart.target
+							`
+
+							if !common.FileExists(file) {
+								err := os.WriteFile(file, []byte(data), 0o755)
+								if err != nil {
+									slog.Error("service", "enable write file", err)
+								}
+							}
+
+							sc := exec.Command("systemctl", "--user", "enable", "elephant.service")
+							out, err := sc.CombinedOutput()
+							if err != nil {
+								slog.Error("service", "enable systemd", err, "out", out)
+							}
+
+							slog.Info("service", "enable", out)
+
+							return nil
+						},
+					},
+					{
+						Name:  "disable",
+						Usage: "disables the systemd service",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							sc := exec.Command("systemctl", "--user", "disable", "elephant.service")
+							out, err := sc.CombinedOutput()
+							if err != nil {
+								slog.Error("service", "disable systemd", err, "out", out)
+							}
+
+							slog.Info("service", "disable", out)
+
+							h := xdg.ConfigHome
+							file := filepath.Join(h, "systemd", "user", "elephant.service")
+
+							err = os.Remove(file)
+							if err != nil {
+								slog.Error("service", "disable", err)
+							}
+
+							return nil
+						},
+					},
+				},
+			},
 			{
 				Name:    "version",
 				Aliases: []string{"v"},

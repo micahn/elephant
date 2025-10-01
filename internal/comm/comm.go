@@ -41,7 +41,7 @@ func init() {
 		Socket = filepath.Join(rd, "elephant", "elephant.sock")
 	}
 
-	os.MkdirAll(Socket, 0755)
+	os.MkdirAll(filepath.Dir(Socket), 0o755)
 
 	registry = make([]MessageHandler, 255)
 

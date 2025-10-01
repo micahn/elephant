@@ -97,7 +97,17 @@ cp desktopapplications.so ~/.config/elephant/providers/
 
 ## Usage
 
+### Important
+
+It is utterly important that `elephant` runs in the appropriate environment. Starting a system-level systemd service f.e. will lead to missing environment variables. It needs to run with the users environment.
+
 ### Starting the Service
+
+On a `systemd` based system, you can use `elephant service enable/disable` to manage a service.
+
+The service file will be placed in `~/.config/systemd/user/elephant.service`.
+
+Feel free to create your own service file/adjust the one created.
 
 ```bash
 # Start elephant with default configuration
@@ -142,6 +152,9 @@ elephant version
 
 # Generate configuration documentation
 elephant generatedoc
+
+# Systemd service management
+elephant service enable/disable
 ```
 
 ### Configuration
