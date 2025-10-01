@@ -9,7 +9,6 @@ import (
 	"plugin"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/abenz1267/elephant/internal/common"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
@@ -34,7 +33,6 @@ var (
 )
 
 func Load(setup bool) {
-	start := time.Now()
 	common.LoadMenus()
 
 	var mut sync.Mutex
@@ -129,6 +127,8 @@ func Load(setup bool) {
 					mut.Lock()
 					Providers[*provider.Name] = provider
 					mut.Unlock()
+
+					slog.Info("providers", "loaded", provider)
 				}()
 
 				mut.Lock()
@@ -144,11 +144,4 @@ func Load(setup bool) {
 			os.Exit(1)
 		}
 	}
-
-	if len(Providers) == 0 {
-		slog.Error("providers", "load", "you don't have any providers installed")
-		os.Exit(1)
-	}
-
-	slog.Info("providers", "loaded", len(Providers), "time", time.Since(start))
 }
