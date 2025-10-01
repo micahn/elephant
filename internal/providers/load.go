@@ -65,7 +65,8 @@ func Load(setup bool) {
 			if !done && filepath.Ext(path) == ".so" {
 				p, err := plugin.Open(path)
 				if err != nil {
-					panic(err)
+					slog.Error("providers", "load", path, "err", err)
+					return nil
 				}
 
 				name, err := p.Lookup("Name")
