@@ -121,11 +121,15 @@ func Load(setup bool) {
 					PrintDoc:   printDocFunc.(func()),
 				}
 
-				if setup {
-					provider.Setup()
-				}
+				go func() {
+					if setup {
+						provider.Setup()
+					}
 
-				Providers[*provider.Name] = provider
+					mut.Lock()
+					Providers[*provider.Name] = provider
+					mut.Unlock()
+				}()
 
 				mut.Lock()
 				have = append(have, filepath.Base(path))
