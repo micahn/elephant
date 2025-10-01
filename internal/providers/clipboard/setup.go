@@ -289,6 +289,7 @@ const (
 	ActionCopy              = "copy"
 	ActionEdit              = "edit"
 	ActionRemove            = "remove"
+	ActionRemoveAll         = "remove_all"
 	ActionToggleImages      = "toggle_images"
 	ActionDisableImagesOnly = "disable_images_only"
 )
@@ -379,6 +380,14 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 			saveToFile()
 		}
 
+		mu.Unlock()
+	case ActionRemoveAll:
+		mu.Lock()
+		for k := range clipboardhistory {
+			delete(clipboardhistory, k)
+		}
+
+		saveToFile()
 		mu.Unlock()
 	case ActionCopy:
 		cmd := exec.Command("sh", "-c", config.Command)
