@@ -23,6 +23,12 @@ Elephant acts as a unified backend service that aggregates data from various sou
   - File operations: open, copy path, copy content
   - Directory navigation
 
+- **Bluetooth**
+  - basic bluetooth management
+  - connect/disconnect
+  - trust/untrust
+  - pair/remove
+
 - **Clipboard**
   - Text and image clipboard history
   - Clipboard content management
