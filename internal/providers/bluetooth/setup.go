@@ -266,10 +266,10 @@ func getDevices() {
 
 		for l := range strings.Lines(string(out)) {
 			if strings.Contains(l, "Device") {
-				f := strings.Fields(l)
+				f := strings.SplitN(l, " ", 4)
 
 				d := Device{
-					Name: f[3],
+					Name: strings.TrimSpace(f[3]),
 					Mac:  f[2],
 				}
 
@@ -295,9 +295,9 @@ func getDevices() {
 	}
 
 	for v := range strings.Lines(string(out)) {
-		fields := strings.Fields(v)
+		fields := strings.SplitN(v, " ", 3)
 		d := Device{
-			Name: fields[2],
+			Name: strings.TrimSpace(fields[2]),
 			Mac:  fields[1],
 		}
 
