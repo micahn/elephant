@@ -5,7 +5,7 @@ LICENSEDIR = $(DESTDIR)$(PREFIX)/share/licenses/elephant
 
 # Build configuration
 GO_BUILD_FLAGS = -buildvcs=false -trimpath
-BUILD_DIR = cmd
+BUILD_DIR = cmd/elephant
 
 .PHONY: all build install uninstall clean
 
@@ -15,14 +15,14 @@ build:
 	cd $(BUILD_DIR) && go build $(GO_BUILD_FLAGS) -o elephant
 
 install: build
-	install -Dm 755 $(BUILD_DIR)/elephant $(BINDIR)/elephant
+	install -Dm 755 $(BUILD_DIR) $(BINDIR)/elephant
 
 uninstall:
 	rm -f $(BINDIR)/elephant
 
 clean:
 	cd $(BUILD_DIR) && go clean
-	rm -f $(BUILD_DIR)/elephant
+	rm -f $(BUILD_DIR)
 
 dev-install: PREFIX = /usr/local
 dev-install: install
