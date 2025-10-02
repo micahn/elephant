@@ -8,6 +8,11 @@ import (
 func ReplaceResultOrStdinCmd(replace, result string) *exec.Cmd {
 	if !strings.Contains(replace, "%RESULT%") {
 		cmd := exec.Command("sh", "-c", replace)
+
+		if !strings.HasSuffix(result, "\n") {
+			result += "\n"
+		}
+
 		cmd.Stdin = strings.NewReader(result)
 		return cmd
 	}
