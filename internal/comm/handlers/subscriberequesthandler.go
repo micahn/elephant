@@ -8,6 +8,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,7 @@ var (
 	sid             atomic.Uint32
 	subs            map[uint32]*sub
 	ProviderUpdated chan string
+	mut             sync.Mutex
 )
 
 const SubscriptionDataChanged = 0
@@ -87,7 +89,9 @@ func subscribe(interval int, provider, query string, conn net.Conn) {
 		results:  []*pb.QueryResponse_Item{},
 	}
 
+	mut.Lock()
 	subs[sub.sid] = sub
+	mut.Unlock()
 
 	if interval != 0 {
 		go watch(sub, conn)
