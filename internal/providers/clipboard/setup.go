@@ -31,7 +31,7 @@ var (
 	file             = common.CacheFile("clipboard.gob")
 	imgTypes         = make(map[string]string)
 	config           *Config
-	clipboardhistory map[string]*Item
+	clipboardhistory = make(map[string]*Item)
 	mu               sync.Mutex
 	imagesOnly       = false
 )
@@ -98,8 +98,6 @@ func loadFromFile() {
 				slog.Error("history", "decoding", err)
 			}
 		}
-	} else {
-		clipboardhistory = map[string]*Item{}
 	}
 }
 
@@ -388,9 +386,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 		mu.Unlock()
 	case ActionRemoveAll:
 		mu.Lock()
-		for k := range clipboardhistory {
-			delete(clipboardhistory, k)
-		}
+		clipboardhistory = make(map[string]*Item)
 
 		saveToFile()
 		mu.Unlock()
