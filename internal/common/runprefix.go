@@ -2,7 +2,6 @@ package common
 
 import (
 	"log/slog"
-	"os"
 	"os/exec"
 )
 
@@ -34,15 +33,15 @@ func InitRunPrefix() {
 		}
 	}
 
-	spid := os.Getenv("SYSTEMD_EXEC_PID")
-	if spid != "" {
-		systemdrun, err := exec.LookPath("systemd-run")
-		if err == nil && systemdrun != "" {
-			runPrefix = "systemd-run --user"
-			slog.Info("config", "runprefix autodetect", runPrefix)
-			return
-		}
-	}
+	// spid := os.Getenv("SYSTEMD_EXEC_PID")
+	// if spid != "" {
+	// 	systemdrun, err := exec.LookPath("systemd-run")
+	// 	if err == nil && systemdrun != "" {
+	// 		runPrefix = "systemd-run --user"
+	// 		slog.Info("config", "runprefix autodetect", runPrefix)
+	// 		return
+	// 	}
+	// }
 
 	slog.Info("config", "runprefix autodetect", "<empty>")
 }
