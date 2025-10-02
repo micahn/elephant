@@ -129,7 +129,7 @@ func Load(setup bool) {
 					Providers[*provider.Name] = provider
 					mut.Unlock()
 
-					slog.Info("providers", "loaded", provider)
+					slog.Info("providers", "loaded", *provider.Name)
 				}()
 
 				mut.Lock()

@@ -60,6 +60,10 @@ func init() {
 				p = "menus"
 			}
 
+			if strings.HasPrefix(p, "bluetooth:") {
+				p = "bluetooth"
+			}
+
 			for k, v := range subs {
 				if v.provider == p && v.interval == 0 && v.query == "" {
 					if ok := updated(v.conn, value); !ok {
