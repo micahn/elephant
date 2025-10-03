@@ -111,7 +111,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		pipe := false
 
 		val := e.Value
-		if val == "" && len(splits) > 1 {
+		if len(splits) > 1 {
 			val = arguments
 		}
 
