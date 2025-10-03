@@ -23,7 +23,7 @@ type Menu struct {
 	NamePretty       string   `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
 	Description      string   `toml:"description" desc:"used as a subtext"`
 	Icon             string   `toml:"icon" desc:"default icon"`
-	Action           string   `toml:"action" desc:"default action"`
+	Action           string   `toml:"action" desc:"default menu action to use"`
 	GlobalSearch     bool     `toml:"global_search" desc:"sets if entries in this menu should be searchable globally without being in the menu"`
 	Entries          []Entry  `toml:"entries" desc:"menu items"`
 	Terminal         bool     `toml:"terminal" desc:"execute action in terminal or not"`
@@ -35,16 +35,16 @@ type Menu struct {
 }
 
 type Entry struct {
-	Text     string   `toml:"text" desc:"text for entry"`
-	Async    string   `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
-	Subtext  string   `toml:"subtext" desc:"sub text for entry"`
-	Value    string   `toml:"value" desc:"value to be used for the action, defaults to the text if empty"`
-	Action   string   `toml:"action" desc:"action to run"`
-	Terminal bool     `toml:"terminal" desc:"runs action in terminal if true"`
-	Icon     string   `toml:"icon" desc:"icon for entry"`
-	SubMenu  string   `toml:"submenu" desc:"submenu to open, if has prefix 'dmenu:' it'll launch that dmenu"`
-	Preview  string   `toml:"preview" desc:"filepath for the preview"`
-	Keywords []string `toml:"keywords" desc:"searchable keywords"`
+	Text     string            `toml:"text" desc:"text for entry"`
+	Async    string            `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
+	Subtext  string            `toml:"subtext" desc:"sub text for entry"`
+	Value    string            `toml:"value" desc:"value to be used for the action, defaults to the text if empty"`
+	Actions  map[string]string `toml:"actions" desc:"actions items can use"`
+	Terminal bool              `toml:"terminal" desc:"runs action in terminal if true"`
+	Icon     string            `toml:"icon" desc:"icon for entry"`
+	SubMenu  string            `toml:"submenu" desc:"submenu to open, if has prefix 'dmenu:' it'll launch that dmenu"`
+	Preview  string            `toml:"preview" desc:"filepath for the preview"`
+	Keywords []string          `toml:"keywords" desc:"searchable keywords"`
 
 	Identifier string `toml:"-"`
 	Menu       string `toml:"-"`

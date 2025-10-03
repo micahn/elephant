@@ -214,6 +214,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				if v.Connected {
 					a = append(a, ActionDisconnect)
 				} else {
+					s = append(s, "disconnected")
 					a = append(s, ActionConnect)
 				}
 			}

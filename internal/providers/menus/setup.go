@@ -44,14 +44,12 @@ func Cleanup(qid uint32) {
 	results.Unlock()
 }
 
-const ActionActivate = "activate"
-
 func Activate(qid uint32, identifier, action string, arguments string) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	case ActionActivate:
+	default:
 		var e common.Entry
 		var menu common.Menu
 
@@ -102,8 +100,8 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			}
 		}
 
-		if e.Action != "" {
-			run = e.Action
+		if len(e.Actions) != 0 {
+			run = e.Actions[action]
 		}
 
 		if run == "" {
@@ -161,9 +159,6 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 				h.Save("", identifier)
 			}
 		}
-	default:
-		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
-		return
 	}
 }
 
@@ -206,13 +201,23 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				}
 			}
 
+			var actions []string
+
+			for k := range me.Actions {
+				actions = append(actions, k)
+			}
+
+			if len(actions) == 0 {
+				actions = append(actions, "default")
+			}
+
 			e := &pb.QueryResponse_Item{
 				Identifier: me.Identifier,
 				Text:       me.Text,
 				Subtext:    sub,
 				Provider:   fmt.Sprintf("%s:%s", Name, me.Menu),
 				Icon:       icon,
-				Actions:    []string{"activate"},
+				Actions:    actions,
 				Type:       pb.QueryResponse_REGULAR,
 				Preview:    me.Preview,
 			}
