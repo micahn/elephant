@@ -170,6 +170,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		saveHist()
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -219,6 +222,7 @@ func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.Quer
 			Score:      int32(config.MaxItems) + 1,
 			Type:       pb.QueryResponse_REGULAR,
 			State:      []string{"current"},
+			Actions:    []string{ActionSave, ActionCopy},
 		}
 
 		go func() {
@@ -251,6 +255,7 @@ func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.Quer
 				Subtext:    v.Input,
 				Provider:   Name,
 				State:      []string{"saved"},
+				Actions:    []string{ActionDelete, ActionCopy},
 				Type:       pb.QueryResponse_REGULAR,
 			}
 

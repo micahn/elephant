@@ -94,6 +94,9 @@ func Activate(qid uint32, identifier, action string, query string) {
 		}
 	case ActionRemove:
 		pkgcmd = "sudo pacman -R"
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 
 	toRun := common.WrapWithTerminal(fmt.Sprintf("%s %s", pkgcmd, name))
@@ -136,11 +139,14 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 
 		if (score > config.MinScore || query == "") && (!oi || (oi && v.Installed)) {
 			state := []string{}
+			a := []string{}
 
 			if v.Installed {
 				state = append(state, "installed")
+				a = append(a, ActionRemove)
 			} else {
 				state = append(state, "available")
+				a = append(a, ActionInstall)
 			}
 
 			name := v.Name
@@ -156,6 +162,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 				Subtext:    fmt.Sprintf("%s (%s) (%s)", v.Description, v.Version, v.Repository),
 				Provider:   Name,
 				State:      state,
+				Actions:    a,
 				Score:      score,
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     s,

@@ -80,45 +80,51 @@ func PrintDoc() {
 func Cleanup(qid uint32) {
 }
 
+const ActionRunCmd = "run_cmd"
+
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if action == history.ActionDelete {
+	switch action {
+	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	}
+	case ActionRunCmd:
+		codePoint, err := strconv.ParseInt(symbols[identifier], 16, 32)
+		if err != nil {
+			slog.Error(Name, "activate parse unicode", err)
+			return
+		}
+		toUse := string(rune(codePoint))
 
-	codePoint, err := strconv.ParseInt(symbols[identifier], 16, 32)
-	if err != nil {
-		slog.Error(Name, "activate parse unicode", err)
-		return
-	}
-	toUse := string(rune(codePoint))
+		cmd := common.ReplaceResultOrStdinCmd(config.Command, toUse)
 
-	cmd := common.ReplaceResultOrStdinCmd(config.Command, toUse)
+		err = cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate run cmd", err)
+			return
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
 
-	err = cmd.Start()
-	if err != nil {
-		slog.Error(Name, "activate run cmd", err)
-		return
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
-	}
+		if config.History {
+			var last uint32
 
-	if config.History {
-		var last uint32
+			for k := range results.Queries[qid] {
+				if k > last {
+					last = k
+				}
+			}
 
-		for k := range results.Queries[qid] {
-			if k > last {
-				last = k
+			if last != 0 {
+				h.Save(results.Queries[qid][last], identifier)
+			} else {
+				h.Save("", identifier)
 			}
 		}
-
-		if last != 0 {
-			h.Save(results.Queries[qid][last], identifier)
-		} else {
-			h.Save("", identifier)
-		}
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -155,6 +161,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				Text:       k,
 				Icon:       v,
 				Provider:   Name,
+				Actions:    []string{"copy"},
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     start,
 					Field:     "text",

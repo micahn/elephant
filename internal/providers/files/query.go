@@ -20,6 +20,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 	}
 
 	entries := make([]*pb.QueryResponse_Item, 0, initialCap)
+	actions := []string{ActionOpen, ActionOpenDir, ActionCopyFile, ActionCopyPath}
 
 	if query != "" {
 		for k, v := range paths {
@@ -31,6 +32,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					Type:       pb.QueryResponse_REGULAR,
 					Subtext:    "",
 					Provider:   Name,
+					Actions:    actions,
 					Score:      score,
 					Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 						Start:     s,
@@ -49,6 +51,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					Text:       v.path,
 					Type:       pb.QueryResponse_REGULAR,
 					Subtext:    "",
+					Actions:    actions,
 					Provider:   Name,
 					Score:      score,
 					Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{

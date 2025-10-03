@@ -84,38 +84,44 @@ func Cleanup(qid uint32) {
 	results.Unlock()
 }
 
+const ActionRunCmd = "run_cmd"
+
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if action == history.ActionDelete {
+	switch action {
+	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	}
+	case ActionRunCmd:
+		cmd := common.ReplaceResultOrStdinCmd(config.Command, symbols[identifier].CP)
 
-	cmd := common.ReplaceResultOrStdinCmd(config.Command, symbols[identifier].CP)
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err)
+			return
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
 
-	err := cmd.Start()
-	if err != nil {
-		slog.Error(Name, "activate", err)
-		return
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
-	}
+		if config.History {
+			var last uint32
 
-	if config.History {
-		var last uint32
+			for k := range results.Queries[qid] {
+				if k > last {
+					last = k
+				}
+			}
 
-		for k := range results.Queries[qid] {
-			if k > last {
-				last = k
+			if last != 0 {
+				h.Save(results.Queries[qid][last], identifier)
+			} else {
+				h.Save("", identifier)
 			}
 		}
-
-		if last != 0 {
-			h.Save(results.Queries[qid][last], identifier)
-		} else {
-			h.Save("", identifier)
-		}
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -175,6 +181,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				Text:       v.Searchable[len(v.Searchable)-1],
 				Icon:       v.CP,
 				State:      state,
+				Actions:    []string{"copy"},
 				Provider:   Name,
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     fs,

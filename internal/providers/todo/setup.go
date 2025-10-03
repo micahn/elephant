@@ -51,11 +51,12 @@ const (
 )
 
 const (
-	ActionSave       = "save"
-	ActionDelete     = "delete"
-	ActionMarkDone   = "done"
-	ActionMarkActive = "active"
-	ActionClear      = "clear"
+	ActionSave         = "save"
+	ActionDelete       = "delete"
+	ActionMarkDone     = "done"
+	ActionMarkActive   = "active"
+	ActionMarkInactive = "inactive"
+	ActionClear        = "clear"
 )
 
 const (
@@ -257,13 +258,11 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	case ActionDelete:
 		items = append(items[:i], items[i+1:]...)
 	case ActionMarkActive:
-		if items[i].State == StateActive {
-			items[i].State = StatePending
-			items[i].Started = time.Time{}
-		} else {
-			items[i].State = StateActive
-			items[i].Started = time.Now()
-		}
+		items[i].State = StateActive
+		items[i].Started = time.Now()
+	case ActionMarkInactive:
+		items[i].State = StatePending
+		items[i].Started = time.Time{}
 	case ActionMarkDone:
 		if items[i].State == StateDone {
 			items[i].State = StatePending
@@ -281,6 +280,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			}
 		}
 		items = items[:n]
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 
 	saveItems()
@@ -329,9 +331,21 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 			e.Score = 999_999 - int32(i)
 		}
 
+		actions := []string{ActionDelete}
+
+		switch v.State {
+		case StateActive:
+			actions = []string{ActionDelete, ActionMarkDone, ActionMarkInactive}
+		case StatePending, StateUrgent:
+			actions = []string{ActionDelete, ActionMarkDone, ActionMarkActive}
+		case StateCreating:
+			actions = []string{ActionSave}
+		}
+
 		e.Provider = Name
 		e.Identifier = fmt.Sprintf("%d", i)
 		e.Text = v.Text
+		e.Actions = actions
 		e.State = []string{v.State}
 		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
 
@@ -391,6 +405,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 		e.Identifier = fmt.Sprintf("CREATE:%s", query)
 		e.Icon = "list-add"
 		e.Text = i.Text
+		e.Actions = []string{ActionSave}
 		e.State = []string{StateCreating}
 
 		if !i.Scheduled.IsZero() {

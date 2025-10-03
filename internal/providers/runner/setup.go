@@ -144,62 +144,66 @@ const (
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if action == history.ActionDelete {
+	switch action {
+	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	}
+	case ActionRunInTerminal, ActionRun:
+		bin := ""
 
-	bin := ""
-
-	splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-	if len(splits) > 1 {
-		arguments = splits[1]
-	} else {
-		arguments = ""
-	}
-
-	for _, v := range items {
-		if v.Identifier == identifier {
-			bin = v.Bin
-			break
+		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
+		if len(splits) > 1 {
+			arguments = splits[1]
+		} else {
+			arguments = ""
 		}
-	}
 
-	run := strings.TrimSpace(fmt.Sprintf("%s %s", bin, arguments))
-	if action == ActionRunInTerminal {
-		run = common.WrapWithTerminal(run)
-	}
-
-	cmd := exec.Command("sh", "-c", run)
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
-
-	err := cmd.Start()
-	if err != nil {
-		slog.Error(Name, "activate", err)
-		return
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
-	}
-
-	if config.History {
-		var last uint32
-
-		for k := range results.Queries[qid] {
-			if k > last {
-				last = k
+		for _, v := range items {
+			if v.Identifier == identifier {
+				bin = v.Bin
+				break
 			}
 		}
 
-		if last != 0 {
-			h.Save(results.Queries[qid][last], identifier)
-		} else {
-			h.Save("", identifier)
+		run := strings.TrimSpace(fmt.Sprintf("%s %s", bin, arguments))
+		if action == ActionRunInTerminal {
+			run = common.WrapWithTerminal(run)
 		}
+
+		cmd := exec.Command("sh", "-c", run)
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setsid: true,
+		}
+
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err)
+			return
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
+
+		if config.History {
+			var last uint32
+
+			for k := range results.Queries[qid] {
+				if k > last {
+					last = k
+				}
+			}
+
+			if last != 0 {
+				h.Save(results.Queries[qid][last], identifier)
+			} else {
+				h.Save("", identifier)
+			}
+		}
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -214,6 +218,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		e := &pb.QueryResponse_Item{
 			Identifier: v.Identifier,
 			Text:       v.Bin,
+			Actions:    []string{ActionRun, ActionRunInTerminal},
 			Provider:   Name,
 			Icon:       config.Icon,
 			Score:      0,

@@ -74,7 +74,6 @@ const (
 	ActionTrust      = "trust"
 	ActionUntrust    = "untrust"
 	ActionFind       = "find"
-	ActionStopFind   = "stop_find"
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
@@ -130,6 +129,9 @@ quit
 disconnect %s
 quit
 `, identifier))
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -198,29 +200,33 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 	for k, v := range devices {
 		s := []string{}
+		a := []string{}
 
 		if v.Paired {
-			s = append(s, "can_remove")
+			s = append(s, "paired")
+			a = append(a, ActionRemove)
 
 			if v.Trusted {
-				s = append(s, "can_untrust")
+				a = append(a, ActionUntrust)
 			} else {
-				s = append(s, "can_trust")
+				a = append(a, ActionTrust)
 
 				if v.Connected {
-					s = append(s, "can_disconnect")
+					a = append(a, ActionDisconnect)
 				} else {
-					s = append(s, "can_connect")
+					a = append(s, ActionConnect)
 				}
 			}
 		} else {
-			s = append(s, "can_pair")
+			s = append(s, "unpaired")
+			a = append(a, ActionPair)
 		}
 
 		e := &pb.QueryResponse_Item{
 			Identifier: v.Mac,
 			Score:      1000 - int32(k),
 			State:      s,
+			Actions:    a,
 			Icon:       v.Icon,
 			Text:       v.Name,
 			Subtext:    v.Mac,

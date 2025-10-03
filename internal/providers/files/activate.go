@@ -74,6 +74,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			}()
 		}
 	default:
-		slog.Error(Name, "nosuchaction", action)
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }

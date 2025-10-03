@@ -10,6 +10,7 @@ import (
 
 	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/pkg/common"
+	"github.com/abenz1267/elephant/pkg/common/history"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
@@ -44,6 +45,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				Type:       pb.QueryResponse_REGULAR,
 				Subtext:    v.GenericName,
 				Icon:       v.Icon,
+				Actions:    []string{ActionStart},
 				Provider:   Name,
 				Score:      1_000_000,
 			})
@@ -88,9 +90,11 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		if usageScore != 0 || config.ShowActions && config.ShowGeneric || !config.ShowActions || (config.ShowActions && len(v.Actions) == 0) || query == "" {
 			if score >= config.MinScore || query == "" {
 				state := []string{}
+				a := []string{ActionStart}
 
 				if usageScore != 0 {
 					state = append(state, "history")
+					a = append(a, history.ActionDelete)
 				}
 
 				if pinned {
@@ -99,11 +103,18 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					state = append(state, "unpinned")
 				}
 
+				if isPinned(k) {
+					a = append(a, ActionUnpin)
+				} else {
+					a = append(a, ActionPin)
+				}
+
 				entries = append(entries, &pb.QueryResponse_Item{
 					Identifier: k,
 					Text:       v.Name,
 					Type:       pb.QueryResponse_REGULAR,
 					Subtext:    subtext,
+					Actions:    a,
 					Icon:       v.Icon,
 					State:      state,
 					Provider:   Name,
@@ -121,10 +132,13 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		for _, a := range v.Actions {
 			identifier := fmt.Sprintf("%s:%s", k, a.Action)
 
+			actions := []string{ActionStart}
+
 			if identifier == alias {
 				entries = append(entries, &pb.QueryResponse_Item{
 					Identifier: identifier,
 					Score:      1_000_000,
+					Actions:    actions,
 					Text:       a.Name,
 					Type:       pb.QueryResponse_REGULAR,
 					Subtext:    v.Name,
@@ -185,17 +199,21 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 					if usageScore != 0 {
 						state = append(state, "history")
+						actions = append(actions, history.ActionDelete)
 					}
 
 					if pinned {
 						state = append(state, "pinned")
+						actions = append(actions, ActionUnpin)
 					} else {
 						state = append(state, "unpinned")
+						actions = append(actions, ActionPin)
 					}
 
 					entries = append(entries, &pb.QueryResponse_Item{
 						Identifier: identifier,
 						Score:      score,
+						Actions:    actions,
 						Text:       a.Name,
 						Type:       pb.QueryResponse_REGULAR,
 						State:      state,

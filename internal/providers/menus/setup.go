@@ -12,9 +12,9 @@ import (
 
 	"github.com/abenz1267/elephant/internal/comm/handlers"
 	"github.com/abenz1267/elephant/internal/providers"
+	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
-	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
@@ -44,120 +44,126 @@ func Cleanup(qid uint32) {
 	results.Unlock()
 }
 
+const ActionActivate = "activate"
+
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if action == history.ActionDelete {
+	switch action {
+	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	}
+	case ActionActivate:
+		var e common.Entry
+		var menu common.Menu
 
-	var e common.Entry
-	var menu common.Menu
+		identifier = strings.TrimPrefix(identifier, "keepopen:")
+		identifier = strings.TrimPrefix(identifier, "menus:")
 
-	identifier = strings.TrimPrefix(identifier, "keepopen:")
-	identifier = strings.TrimPrefix(identifier, "menus:")
-
-	splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-	if len(splits) > 1 {
-		arguments = splits[1]
-	}
-
-	openmenu := false
-
-	terminal := false
-
-	for _, v := range common.Menus {
-		if identifier == v.Name {
-			menu = v
-			openmenu = true
-			break
+		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
+		if len(splits) > 1 {
+			arguments = splits[1]
 		}
 
-		for _, entry := range v.Entries {
-			if identifier == entry.Identifier {
+		openmenu := false
+
+		terminal := false
+
+		for _, v := range common.Menus {
+			if identifier == v.Name {
 				menu = v
-				e = entry
-
-				terminal = v.Terminal || entry.Terminal
-
+				openmenu = true
 				break
 			}
-		}
-	}
 
-	if openmenu {
-		handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, menu.Name)
-		return
-	}
+			for _, entry := range v.Entries {
+				if identifier == entry.Identifier {
+					menu = v
+					e = entry
 
-	run := menu.Action
+					terminal = v.Terminal || entry.Terminal
 
-	if after, ok := strings.CutPrefix(identifier, "dmenu:"); ok {
-		run = after
-
-		if strings.Contains(run, "~") {
-			home, _ := os.UserHomeDir()
-			run = strings.ReplaceAll(run, "~", home)
-		}
-	}
-
-	if e.Action != "" {
-		run = e.Action
-	}
-
-	if run == "" {
-		return
-	}
-
-	pipe := false
-
-	val := e.Value
-	if val == "" && len(splits) > 1 {
-		val = arguments
-	}
-
-	if !strings.Contains(run, "%RESULT%") {
-		pipe = true
-	} else {
-		run = strings.ReplaceAll(run, "%RESULT%", val)
-	}
-
-	if terminal {
-		run = common.WrapWithTerminal(run)
-	}
-
-	cmd := exec.Command("sh", "-c", run)
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
-
-	if pipe && e.Value != "" {
-		cmd.Stdin = strings.NewReader(val)
-	}
-
-	err := cmd.Start()
-	if err != nil {
-		slog.Error(Name, "activate", err)
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
-	}
-
-	if menu.History {
-		var last uint32
-
-		for k := range results.Queries[qid] {
-			if k > last {
-				last = k
+					break
+				}
 			}
 		}
 
-		if last != 0 {
-			h.Save(results.Queries[qid][last], identifier)
-		} else {
-			h.Save("", identifier)
+		if openmenu {
+			handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, menu.Name)
+			return
 		}
+
+		run := menu.Action
+
+		if after, ok := strings.CutPrefix(identifier, "dmenu:"); ok {
+			run = after
+
+			if strings.Contains(run, "~") {
+				home, _ := os.UserHomeDir()
+				run = strings.ReplaceAll(run, "~", home)
+			}
+		}
+
+		if e.Action != "" {
+			run = e.Action
+		}
+
+		if run == "" {
+			return
+		}
+
+		pipe := false
+
+		val := e.Value
+		if val == "" && len(splits) > 1 {
+			val = arguments
+		}
+
+		if !strings.Contains(run, "%RESULT%") {
+			pipe = true
+		} else {
+			run = strings.ReplaceAll(run, "%RESULT%", val)
+		}
+
+		if terminal {
+			run = common.WrapWithTerminal(run)
+		}
+
+		cmd := exec.Command("sh", "-c", run)
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setsid: true,
+		}
+
+		if pipe && e.Value != "" {
+			cmd.Stdin = strings.NewReader(val)
+		}
+
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err)
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
+
+		if menu.History {
+			var last uint32
+
+			for k := range results.Queries[qid] {
+				if k > last {
+					last = k
+				}
+			}
+
+			if last != 0 {
+				h.Save(results.Queries[qid][last], identifier)
+			} else {
+				h.Save("", identifier)
+			}
+		}
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -206,6 +212,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				Subtext:    sub,
 				Provider:   fmt.Sprintf("%s:%s", Name, me.Menu),
 				Icon:       icon,
+				Actions:    []string{"activate"},
 				Type:       pb.QueryResponse_REGULAR,
 				Preview:    me.Preview,
 			}
@@ -257,6 +264,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 					if usageScore != 0 {
 						e.State = append(e.State, "history")
+						e.Actions = append(e.Actions, history.ActionDelete)
 					}
 
 					e.Score = e.Score + usageScore

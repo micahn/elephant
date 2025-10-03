@@ -411,7 +411,8 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 			}()
 		}
 	default:
-		slog.Error(Name, "activate", fmt.Sprintf("no such action '%s'", action))
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -429,6 +430,7 @@ func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryR
 			Icon:       v.Img,
 			Subtext:    v.Time.Format(time.RFC1123Z),
 			Type:       pb.QueryResponse_REGULAR,
+			Actions:    []string{ActionCopy, ActionEdit, ActionRemove},
 			Provider:   Name,
 		}
 

@@ -81,59 +81,65 @@ func Cleanup(qid uint32) {
 	results.Unlock()
 }
 
+const ActionSearch = "search"
+
 func Activate(qid uint32, identifier, action string, arguments string) {
-	if action == history.ActionDelete {
+	switch action {
+	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	}
+	case ActionSearch:
+		i, _ := strconv.Atoi(identifier)
 
-	i, _ := strconv.Atoi(identifier)
-
-	for k := range prefixes {
-		if after, ok := strings.CutPrefix(arguments, k); ok {
-			arguments = after
-			break
-		}
-	}
-
-	splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-	if len(splits) > 1 {
-		arguments = splits[1]
-	}
-
-	url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(arguments)))
-
-	prefix := common.LaunchPrefix("")
-
-	cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", prefix, url)))
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
-
-	err := cmd.Start()
-	if err != nil {
-		slog.Error(Name, "activate", err)
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
-	}
-
-	if config.History {
-		var last uint32
-
-		for k := range results.Queries[qid] {
-			if k > last {
-				last = k
+		for k := range prefixes {
+			if after, ok := strings.CutPrefix(arguments, k); ok {
+				arguments = after
+				break
 			}
 		}
 
-		if last != 0 {
-			h.Save(results.Queries[qid][last], identifier)
-		} else {
-			h.Save("", identifier)
+		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
+		if len(splits) > 1 {
+			arguments = splits[1]
 		}
+
+		url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(arguments)))
+
+		prefix := common.LaunchPrefix("")
+
+		cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", prefix, url)))
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setsid: true,
+		}
+
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err)
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
+
+		if config.History {
+			var last uint32
+
+			for k := range results.Queries[qid] {
+				if k > last {
+					last = k
+				}
+			}
+
+			if last != 0 {
+				h.Save(results.Queries[qid][last], identifier)
+			} else {
+				h.Save("", identifier)
+			}
+		}
+	default:
+		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
+		return
 	}
 }
 
@@ -164,6 +170,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 				Identifier: strconv.Itoa(k),
 				Text:       v.Name,
 				Subtext:    "",
+				Actions:    []string{"search"},
 				Icon:       icon,
 				Provider:   Name,
 				Score:      int32(100 - k),
@@ -188,6 +195,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 
 					if usageScore != 0 {
 						e.State = append(e.State, "history")
+						e.Actions = append(e.Actions, history.ActionDelete)
 					}
 
 					e.Score = e.Score + usageScore

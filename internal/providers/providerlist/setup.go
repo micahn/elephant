@@ -74,6 +74,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 					Text:       v.NamePretty,
 					Subtext:    v.Description,
 					Provider:   Name,
+					Actions:    []string{"activate"},
 					Type:       pb.QueryResponse_REGULAR,
 					Icon:       v.Icon,
 				}
@@ -110,6 +111,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 				Text:       *v.NamePretty,
 				Icon:       v.Icon(),
 				Provider:   Name,
+				Actions:    []string{"activate"},
 				Type:       pb.QueryResponse_REGULAR,
 			}
 
