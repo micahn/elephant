@@ -194,9 +194,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 
-	// if len(devices) == 0 {
 	getDevices()
-	// }
 
 	for k, v := range devices {
 		s := []string{}
@@ -208,12 +206,12 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 				s = append(s, "can_untrust")
 			} else {
 				s = append(s, "can_trust")
-			}
 
-			if v.Connected {
-				s = append(s, "can_disconnect")
-			} else {
-				s = append(s, "can_connect")
+				if v.Connected {
+					s = append(s, "can_disconnect")
+				} else {
+					s = append(s, "can_connect")
+				}
 			}
 		} else {
 			s = append(s, "can_pair")
