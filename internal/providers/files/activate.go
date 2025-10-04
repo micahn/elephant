@@ -19,7 +19,8 @@ const (
 )
 
 func Activate(qid uint32, identifier, action string, arguments string) {
-	path := paths[identifier].path
+	f, _ := paths.Load(identifier)
+	path := f.(*file).path
 
 	if action == "" {
 		action = ActionOpen

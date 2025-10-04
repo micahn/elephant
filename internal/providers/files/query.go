@@ -12,18 +12,18 @@ import (
 func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 
-	initialCap := len(paths)
-
 	if query != "" {
-		initialCap = min(initialCap/10, 1000)
 		results.GetData(query, qid, iid, exact)
 	}
 
-	entries := make([]*pb.QueryResponse_Item, 0, initialCap)
+	entries := []*pb.QueryResponse_Item{}
 	actions := []string{ActionOpen, ActionOpenDir, ActionCopyFile, ActionCopyPath}
 
 	if query != "" {
-		for k, v := range paths {
+		paths.Range(func(key, val any) bool {
+			k := key.(string)
+			v := val.(*file)
+
 			score, positions, s := common.FuzzyScore(query, v.path, exact)
 			if score > 0 {
 				entries = append(entries, &pb.QueryResponse_Item{
@@ -41,9 +41,14 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					},
 				})
 			}
-		}
+
+			return true
+		})
 	} else {
-		for k, v := range paths {
+		paths.Range(func(key, val any) bool {
+			k := key.(string)
+			v := val.(*file)
+
 			if !strings.HasSuffix(k, "/") {
 				score := calcScore(v.changed, start)
 				entries = append(entries, &pb.QueryResponse_Item{
@@ -61,7 +66,9 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					},
 				})
 			}
-		}
+
+			return true
+		})
 	}
 
 	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))

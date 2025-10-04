@@ -108,6 +108,6 @@ func handle(conn net.Conn, cid uint32) {
 			continue
 		}
 
-		registry[mType].Handle(cid, conn, p)
+		go registry[mType].Handle(cid, conn, p)
 	}
 }

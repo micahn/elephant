@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
@@ -27,6 +28,7 @@ const (
 type queryData struct {
 	Query     string
 	Iteration atomic.Uint32
+	cancel    context.CancelFunc
 	sync.Mutex
 }
 
@@ -37,34 +39,6 @@ var (
 	MaxGlobalItemsToDisplayWebsearch = 0
 	WebsearchPrefixes                = make(map[string]string)
 )
-
-func handleAsync(qid, iid uint32, conn net.Conn) {
-	for item := range providers.AsyncChannels[qid][iid] {
-		req := pb.QueryResponse{
-			Qid:  int32(qid),
-			Iid:  int32(iid),
-			Item: item,
-		}
-
-		b, err := proto.Marshal(&req)
-		if err != nil {
-			panic(err)
-		}
-
-		var buffer bytes.Buffer
-		buffer.Write([]byte{QueryAsyncItem})
-
-		lengthBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(lengthBuf, uint32(len(b)))
-		buffer.Write(lengthBuf)
-		buffer.Write(b)
-
-		_, err = conn.Write(buffer.Bytes())
-		if err != nil {
-			slog.Error("queryhandler", "async", err)
-		}
-	}
-}
 
 type QueryRequest struct{}
 
@@ -94,6 +68,18 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 	}
 	queryMutex.Unlock()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	isCncld := func() bool {
+		select {
+		case <-ctx.Done():
+			return true
+		default:
+			return false
+		}
+	}
+
 	var currentQID uint32
 	var currentIteration uint32
 
@@ -101,11 +87,16 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		lastLength := 0
 
 		for k, v := range queries[cid] {
+			if v.cancel != nil {
+				v.cancel()
+			}
+
 			if strings.HasPrefix(req.Query, v.Query) && len(v.Query) > lastLength {
 				currentQID = k
 				lastLength = len(v.Query)
 				v.Iteration.Add(1)
 				currentIteration = v.Iteration.Load()
+				v.cancel = cancel
 			}
 		}
 
@@ -116,7 +107,8 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 			queryMutex.Lock()
 			providers.QueryProviders[currentQID] = req.Providers
 			data := &queryData{
-				Query: req.Query,
+				Query:  req.Query,
+				cancel: cancel,
 			}
 			data.Iteration.Add(1)
 			currentIteration = data.Iteration.Load()
@@ -143,14 +135,6 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 
 	entries := []*pb.QueryResponse_Item{}
 
-	if _, ok := providers.AsyncChannels[currentQID]; !ok {
-		providers.AsyncChannels[currentQID] = make(map[uint32]chan *pb.QueryResponse_Item)
-	}
-
-	providers.AsyncChannels[currentQID][currentIteration] = make(chan *pb.QueryResponse_Item)
-
-	go handleAsync(currentQID, currentIteration, conn)
-
 	for _, v := range req.Providers {
 		query := req.Query
 
@@ -174,6 +158,10 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 
 	wg.Wait()
 
+	if isCncld() {
+		return
+	}
+
 	slices.SortFunc(entries, sortEntries)
 
 	if len(entries) == 0 {
@@ -190,6 +178,10 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 	hideWebsearch := len(req.Providers) > 1 && len(entries) > MaxGlobalItemsToDisplayWebsearch
 
 	for _, v := range entries {
+		if isCncld() {
+			return
+		}
+
 		if v.Provider == "websearch" && hideWebsearch && v.Text != wsprefix {
 			continue
 		}

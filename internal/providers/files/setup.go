@@ -22,8 +22,7 @@ import (
 )
 
 var (
-	pm      sync.Mutex
-	paths   = make(map[string]*file)
+	paths   sync.Map
 	results = providers.QueryData{}
 )
 
@@ -62,6 +61,7 @@ func Setup() {
 
 	home, _ := os.UserHomeDir()
 	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
+	cmd.Args = append(cmd.Args, "--hidden")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -87,14 +87,17 @@ func Setup() {
 				do = true
 			case <-timer.C:
 				if do {
-					pm.Lock()
 					// this is ghetto, but paths aren't suffixed with `/`, so we can't just check for a path-prefix
-					for k, v := range paths {
+					paths.Range(func(key, val any) bool {
+						k := key.(string)
+						v := val.(*file)
+
 						if _, err := os.Stat(v.path); err != nil {
-							delete(paths, k)
+							paths.Delete(k)
 						}
-					}
-					pm.Unlock()
+
+						return true
+					})
 
 					do = false
 				}
@@ -115,8 +118,6 @@ func Setup() {
 				}
 
 				if info, err := times.Stat(event.Name); err == nil {
-					pm.Lock()
-
 					fileInfo, err := os.Stat(event.Name)
 					if err == nil {
 						path := event.Name
@@ -129,18 +130,17 @@ func Setup() {
 						md5 := md5.Sum([]byte(path))
 						md5str := hex.EncodeToString(md5[:])
 
-						if val, ok := paths[md5str]; ok {
-							val.changed = info.ChangeTime()
+						if val, ok := paths.Load(md5str); ok {
+							v := val.(*file)
+							v.changed = info.ChangeTime()
 						} else {
-							paths[md5str] = &file{
+							paths.Store(md5str, &file{
 								identifier: md5str,
 								path:       path,
 								changed:    info.ChangeTime(),
-							}
+							})
 						}
 					}
-
-					pm.Unlock()
 				}
 			case _, ok := <-watcher.Errors:
 				if !ok {
@@ -159,8 +159,6 @@ func Setup() {
 			}
 
 			if info, err := times.Stat(path); err == nil {
-				pm.Lock()
-
 				diff := start.Sub(info.ChangeTime())
 
 				md5 := md5.Sum([]byte(path))
@@ -177,14 +175,12 @@ func Setup() {
 					f.changed = info.ChangeTime()
 				}
 
-				paths[md5str] = &f
-
-				pm.Unlock()
+				paths.Store(md5str, &f)
 			}
 		}
 	}
 
-	slog.Info(Name, "files", len(paths), "time", time.Since(start))
+	slog.Info(Name, "time", time.Since(start))
 }
 
 func PrintDoc() {
