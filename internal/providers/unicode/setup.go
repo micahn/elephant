@@ -4,13 +4,13 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	_ "embed"
 
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
@@ -21,7 +21,6 @@ var (
 	Name       = "unicode"
 	NamePretty = "Unicode"
 	h          = history.Load(Name)
-	results    = providers.QueryData{}
 )
 
 //go:embed README.md
@@ -77,12 +76,9 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-}
-
 const ActionRunCmd = "run_cmd"
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
@@ -108,19 +104,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if config.History {
-			var last uint32
-
-			for k := range results.Queries[qid] {
-				if k > last {
-					last = k
-				}
-			}
-
-			if last != 0 {
-				h.Save(results.Queries[qid][last], identifier)
-			} else {
-				h.Save("", identifier)
-			}
+			h.Save(query, identifier)
 		}
 	default:
 		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
@@ -128,13 +112,9 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
-
-	if query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	for k, v := range symbols {
 		score, positions, start := common.FuzzyScore(query, k, exact)

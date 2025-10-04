@@ -3,29 +3,21 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
-var results = providers.QueryData{}
-
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	desktop := os.Getenv("XDG_CURRENT_DESKTOP")
 	entries := make([]*pb.QueryResponse_Item, 0, len(files)*2) // Estimate for entries + action
-
-	isSub := qid >= 100_000_000
-
-	if !isSub && query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	alias := ""
 	if val, ok := config.Aliases[query]; ok {
@@ -105,6 +97,16 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 
 				if isPinned(k) {
 					a = append(a, ActionUnpin)
+
+					i := slices.Index(pins, k)
+
+					if i != 0 {
+						a = append(a, ActionPinUp)
+					}
+
+					if i != len(pins)-1 {
+						a = append(a, ActionPinDown)
+					}
 				} else {
 					a = append(a, ActionPin)
 				}
@@ -205,6 +207,16 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 					if pinned {
 						state = append(state, "pinned")
 						actions = append(actions, ActionUnpin)
+
+						i := slices.Index(pins, identifier)
+
+						if i != 0 {
+							actions = append(actions, ActionPinUp)
+						}
+
+						if i != len(pins)-1 {
+							actions = append(actions, ActionPinDown)
+						}
 					} else {
 						state = append(state, "unpinned")
 						actions = append(actions, ActionPin)
@@ -231,9 +243,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 		}
 	}
 
-	if !isSub {
-		slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
-	}
+	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
 
 	return entries
 }

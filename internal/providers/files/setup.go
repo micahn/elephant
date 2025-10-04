@@ -14,17 +14,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/djherbis/times"
 	"github.com/fsnotify/fsnotify"
 )
 
-var (
-	paths   sync.Map
-	results = providers.QueryData{}
-)
+var paths sync.Map
 
 //go:embed README.md
 var readme string
@@ -61,7 +57,7 @@ func Setup() {
 
 	home, _ := os.UserHomeDir()
 	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
-	cmd.Args = append(cmd.Args, "--hidden")
+	// cmd.Args = append(cmd.Args, "--hidden")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -187,13 +183,6 @@ func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
-}
-
-func Cleanup(qid uint32) {
-	slog.Info(Name, "cleanup", qid)
-	results.Lock()
-	delete(results.Queries, qid)
-	results.Unlock()
 }
 
 func Icon() string {

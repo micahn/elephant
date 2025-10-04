@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/abenz1267/elephant/internal/comm/handlers"
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
@@ -21,7 +21,6 @@ import (
 var (
 	Name       = "menus"
 	NamePretty = "Menus"
-	results    = providers.QueryData{}
 	h          = history.Load(Name)
 )
 
@@ -37,14 +36,7 @@ func PrintDoc() {
 
 func Setup() {}
 
-func Cleanup(qid uint32) {
-	slog.Info(Name, "cleanup", qid)
-	results.Lock()
-	delete(results.Queries, qid)
-	results.Unlock()
-}
-
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
@@ -55,11 +47,6 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 		identifier = strings.TrimPrefix(identifier, "keepopen:")
 		identifier = strings.TrimPrefix(identifier, "menus:")
-
-		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-		if len(splits) > 1 {
-			arguments = splits[1]
-		}
 
 		openmenu := false
 
@@ -111,8 +98,8 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		pipe := false
 
 		val := e.Value
-		if len(splits) > 1 {
-			val = arguments
+		if args != "" {
+			val = args
 		}
 
 		if !strings.Contains(run, "%RESULT%") {
@@ -135,7 +122,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			cmd.Stdin = strings.NewReader(val)
 		}
 
-		err := cmd.Start()
+		err := cmd.Run()
 		if err != nil {
 			slog.Error(Name, "activate", err)
 		} else {
@@ -145,33 +132,17 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if menu.History {
-			var last uint32
-
-			for k := range results.Queries[qid] {
-				if k > last {
-					last = k
-				}
-			}
-
-			if last != 0 {
-				h.Save(results.Queries[qid][last], identifier)
-			} else {
-				h.Save("", identifier)
-			}
+			h.Save(query, identifier)
 		}
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 	menu := ""
 
 	initialQuery := query
-
-	if query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	split := strings.Split(query, ":")
 	single := len(split) > 1
@@ -240,7 +211,7 @@ func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.Query
 						e.Text = "%DELETE%"
 					}
 
-					providers.AsyncChannels[qid][iid] <- e
+					handlers.UpdateItem(query, conn, e)
 				}()
 			}
 

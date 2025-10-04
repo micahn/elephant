@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"net"
 	"strings"
 	"time"
 
@@ -9,12 +10,8 @@ import (
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 )
 
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
-
-	if query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	entries := []*pb.QueryResponse_Item{}
 	actions := []string{ActionOpen, ActionOpenDir, ActionCopyFile, ActionCopyPath}

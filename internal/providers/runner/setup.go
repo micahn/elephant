@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
@@ -27,7 +27,6 @@ import (
 var (
 	Name       = "runner"
 	NamePretty = "Runner"
-	results    = providers.QueryData{}
 )
 
 //go:embed README.md
@@ -131,32 +130,18 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-	slog.Info(Name, "cleanup", qid)
-	results.Lock()
-	delete(results.Queries, qid)
-	results.Unlock()
-}
-
 const (
 	ActionRun           = "run"
 	ActionRunInTerminal = "runterminal"
 )
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
 		return
 	case ActionRunInTerminal, ActionRun:
 		bin := ""
-
-		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-		if len(splits) > 1 {
-			arguments = splits[1]
-		} else {
-			arguments = ""
-		}
 
 		for _, v := range items {
 			if v.Identifier == identifier {
@@ -165,7 +150,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			}
 		}
 
-		run := strings.TrimSpace(fmt.Sprintf("%s %s", bin, arguments))
+		run := strings.TrimSpace(fmt.Sprintf("%s %s", bin, args))
 		if action == ActionRunInTerminal {
 			run = common.WrapWithTerminal(run)
 		}
@@ -187,19 +172,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if config.History {
-			var last uint32
-
-			for k := range results.Queries[qid] {
-				if k > last {
-					last = k
-				}
-			}
-
-			if last != 0 {
-				h.Save(results.Queries[qid][last], identifier)
-			} else {
-				h.Save("", identifier)
-			}
+			h.Save(query, identifier)
 		}
 	default:
 		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
@@ -207,12 +180,8 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
-
-	if query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	for _, v := range items {
 		e := &pb.QueryResponse_Item{

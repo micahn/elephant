@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
@@ -63,9 +64,6 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-}
-
 const (
 	ActionDisconnect = "disconnect"
 	ActionConnect    = "connect"
@@ -76,7 +74,7 @@ const (
 	ActionFind       = "find"
 )
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	cmd := exec.Command("bluetoothctl")
 
 	removed := false
@@ -188,11 +186,9 @@ quit
 			}
 		}
 	}
-
-	handlers.ProviderUpdated <- "bluetooth:reload"
 }
 
-func Query(qid uint32, iid uint32, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 

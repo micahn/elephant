@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"net"
 	"slices"
 	"strings"
 	"time"
@@ -46,13 +47,10 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
+func Activate(identifier, action string, query string, args string) {
 }
 
-func Activate(qid uint32, identifier, action string, arguments string) {
-}
-
-func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 

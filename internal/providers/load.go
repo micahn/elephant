@@ -4,6 +4,7 @@ package providers
 import (
 	"io/fs"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"plugin"
@@ -21,15 +22,13 @@ type Provider struct {
 	NamePretty *string
 	Setup      func()
 	Icon       func() string
-	Cleanup    func(qid uint32)
-	Activate   func(qid uint32, identifier, action string, arguments string)
-	Query      func(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item
+	Activate   func(identifier, action, query, args string)
+	Query      func(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item
 }
 
 var (
 	Providers      map[string]Provider
 	QueryProviders map[uint32][]string
-	AsyncChannels  = make(map[uint32]map[uint32]chan *pb.QueryResponse_Item)
 )
 
 func Load(setup bool) {
@@ -89,11 +88,6 @@ func Load(setup bool) {
 					slog.Error("providers", "load", err, "provider", path)
 				}
 
-				cleanupFunc, err := p.Lookup("Cleanup")
-				if err != nil {
-					slog.Error("providers", "load", err, "provider", path)
-				}
-
 				iconFunc, err := p.Lookup("Icon")
 				if err != nil {
 					slog.Error("providers", "load", err, "provider", path)
@@ -113,9 +107,8 @@ func Load(setup bool) {
 					Icon:       iconFunc.(func() string),
 					Setup:      setupFunc.(func()),
 					Name:       name.(*string),
-					Cleanup:    cleanupFunc.(func(uint32)),
-					Activate:   activateFunc.(func(uint32, string, string, string)),
-					Query:      queryFunc.(func(uint32, uint32, string, bool, bool) []*pb.QueryResponse_Item),
+					Activate:   activateFunc.(func(string, string, string, string)),
+					Query:      queryFunc.(func(net.Conn, string, bool, bool) []*pb.QueryResponse_Item),
 					NamePretty: namePretty.(*string),
 					PrintDoc:   printDocFunc.(func()),
 				}

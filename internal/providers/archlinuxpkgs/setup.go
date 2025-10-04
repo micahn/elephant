@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os/exec"
 	"slices"
@@ -78,10 +79,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-}
-
-func Activate(qid uint32, identifier, action string, query string) {
+func Activate(identifier, action string, query string, args string) {
 	name := entryMap[identifier].Name
 	var pkgcmd string
 
@@ -112,7 +110,7 @@ func Activate(qid uint32, identifier, action string, query string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	if !isSetup {

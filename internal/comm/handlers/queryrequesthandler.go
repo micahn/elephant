@@ -19,30 +19,54 @@ import (
 )
 
 const (
-	QueryDone      = 255
-	QueryNoResults = 254
-	QueryItem      = 0
-	QueryAsyncItem = 1
+	QueryDone          = 255
+	QueryNoResults     = 254
+	QueryItem          = 0
+	QueryAsyncItem     = 1
+	ActivationFinished = 2
 )
 
-type queryData struct {
-	Query     string
-	Iteration atomic.Uint32
-	cancel    context.CancelFunc
-	sync.Mutex
-}
-
 var (
-	qid                              atomic.Uint32
-	queries                          = make(map[uint32]map[uint32]*queryData)
+	queries                          = make(map[uint32]context.CancelFunc)
 	queryMutex                       sync.Mutex
 	MaxGlobalItemsToDisplayWebsearch = 0
 	WebsearchPrefixes                = make(map[string]string)
+	qid                              atomic.Uint32
 )
 
 type QueryRequest struct{}
 
+func UpdateItem(query string, conn net.Conn, item *pb.QueryResponse_Item) {
+	req := pb.QueryResponse{
+		Query: query,
+		Item:  item,
+	}
+
+	b, err := proto.Marshal(&req)
+	if err != nil {
+		slog.Debug("async update", "marshal", err)
+		return
+	}
+
+	var buffer bytes.Buffer
+	buffer.Write([]byte{QueryAsyncItem})
+
+	lengthBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(lengthBuf, uint32(len(b)))
+	buffer.Write(lengthBuf)
+	buffer.Write(b)
+
+	_, err = conn.Write(buffer.Bytes())
+	if err != nil {
+		slog.Debug("async update", "write", err)
+		return
+	}
+}
+
 func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
+	qid.Add(1)
+	qqid := qid.Load()
+
 	start := time.Now()
 
 	req := &pb.QueryRequest{}
@@ -63,13 +87,19 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 	}
 
 	queryMutex.Lock()
-	if _, ok := queries[cid]; !ok {
-		queries[cid] = make(map[uint32]*queryData)
-	}
-	queryMutex.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if val, ok := queries[cid]; ok {
+		if val != nil {
+			val()
+		}
+		queries[cid] = cancel
+	} else {
+		queries[cid] = cancel
+	}
+	queryMutex.Unlock()
 
 	isCncld := func() bool {
 		select {
@@ -80,58 +110,10 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		}
 	}
 
-	var currentQID uint32
-	var currentIteration uint32
-
-	if req.Query != "" {
-		lastLength := 0
-
-		for k, v := range queries[cid] {
-			if v.cancel != nil {
-				v.cancel()
-			}
-
-			if strings.HasPrefix(req.Query, v.Query) && len(v.Query) > lastLength {
-				currentQID = k
-				lastLength = len(v.Query)
-				v.Iteration.Add(1)
-				currentIteration = v.Iteration.Load()
-				v.cancel = cancel
-			}
-		}
-
-		if currentQID == 0 {
-			qid.Add(1)
-			currentQID = qid.Load()
-
-			queryMutex.Lock()
-			providers.QueryProviders[currentQID] = req.Providers
-			data := &queryData{
-				Query:  req.Query,
-				cancel: cancel,
-			}
-			data.Iteration.Add(1)
-			currentIteration = data.Iteration.Load()
-			queries[cid][currentQID] = data
-			queryMutex.Unlock()
-
-			slog.Info("providers", "query", "new", "qid", currentQID, "iid", currentIteration, "text", req.Query)
-		} else {
-			slog.Info("providers", "query", "resuming", "qid", currentQID, "iid", currentIteration, "text", req.Query)
-		}
-	} else {
-		qid.Add(1)
-		currentQID = qid.Load()
-		currentIteration = 1
-		slog.Info("providers", "query", "new", "qid", currentQID, "iid", currentIteration, "text", "<empty>")
-	}
-
 	var mut sync.Mutex
 
 	var wg sync.WaitGroup
 	wg.Add(len(req.Providers))
-
-	providers.Timestampedqueries.Data[currentQID] = time.Now()
 
 	entries := []*pb.QueryResponse_Item{}
 
@@ -147,7 +129,7 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		go func(text string, wg *sync.WaitGroup) {
 			defer wg.Done()
 			if p, ok := providers.Providers[v]; ok {
-				res := p.Query(currentQID, currentIteration, text, len(req.Providers) == 1, req.Exactsearch)
+				res := p.Query(conn, text, len(req.Providers) == 1, req.Exactsearch)
 
 				mut.Lock()
 				entries = append(entries, res...)
@@ -186,15 +168,10 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 			continue
 		}
 
-		if req.Query != "" && currentIteration != queries[cid][currentQID].Iteration.Load() {
-			slog.Info("queryrequesthandler", "results", "aborting", "qid", currentQID, "iid", currentIteration)
-			return
-		}
-
 		req := pb.QueryResponse{
-			Qid:  int32(qid.Load()),
-			Iid:  int32(currentIteration),
-			Item: v,
+			Qid:   int32(qqid),
+			Query: req.Query,
+			Item:  v,
 		}
 
 		b, err := proto.Marshal(&req)
@@ -220,7 +197,7 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 
 	writeStatus(QueryDone, conn)
 
-	slog.Info("providers", "results", len(entries), "time", time.Since(start))
+	slog.Info("providers", "results", len(entries), "time", time.Since(start), "query", req.Query)
 }
 
 func sortEntries(a *pb.QueryResponse_Item, b *pb.QueryResponse_Item) int {

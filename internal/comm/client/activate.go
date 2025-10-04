@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/abenz1267/elephant/pkg/pb/pb"
@@ -14,14 +13,12 @@ import (
 
 func Activate(data string) {
 	v := strings.Split(data, ";")
-	qid, _ := strconv.Atoi(v[0])
 
 	req := pb.ActivateRequest{
-		Qid:        int32(qid),
 		Provider:   v[1],
 		Identifier: v[2],
 		Action:     v[3],
-		Arguments:  v[4],
+		Query:      v[4],
 	}
 
 	b, err := proto.Marshal(&req)

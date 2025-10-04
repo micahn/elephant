@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/binary"
 	"log/slog"
 	"net"
 	"strings"
 
 	"github.com/abenz1267/elephant/internal/providers"
+	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -26,9 +29,28 @@ func (a *ActivateRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		provider = strings.Split(provider, ":")[0]
 	}
 
-	if p, ok := providers.Providers[provider]; ok {
-		p.Activate(uint32(req.Qid), req.Identifier, req.Action, req.Arguments)
+	q, args := "", ""
+	parts := strings.SplitN(req.Query, common.GetElephantConfig().ArgumentDelimiter, 2)
+	if len(parts) == 2 {
+		q = parts[0]
+		args = parts[1]
+	} else {
+		q = parts[0]
 	}
 
-	providers.Cleanup(uint32(req.Qid))
+	if p, ok := providers.Providers[provider]; ok {
+		p.Activate(req.Identifier, req.Action, q, args)
+
+		var buffer bytes.Buffer
+		buffer.Write([]byte{ActivationFinished})
+
+		lengthBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(lengthBuf, uint32(0))
+		buffer.Write(lengthBuf)
+
+		_, err := conn.Write(buffer.Bytes())
+		if err != nil {
+			slog.Debug("activation done", "write", err)
+		}
+	}
 }

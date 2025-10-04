@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -286,8 +287,6 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {}
-
 const (
 	ActionCopy              = "copy"
 	ActionEdit              = "edit"
@@ -297,7 +296,7 @@ const (
 	ActionDisableImagesOnly = "disable_images_only"
 )
 
-func Activate(_ uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	if action == "" {
 		action = ActionCopy
 	}
@@ -416,7 +415,7 @@ func Activate(_ uint32, identifier, action string, arguments string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	for k, v := range clipboardhistory {
@@ -434,8 +433,8 @@ func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryR
 			Provider:   Name,
 		}
 
-		if text != "" {
-			score, pos, start := common.FuzzyScore(text, v.Content, exact)
+		if query != "" {
+			score, pos, start := common.FuzzyScore(query, v.Content, exact)
 
 			e.Score = score
 			e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{
@@ -452,7 +451,7 @@ func Query(qid uint32, iid uint32, text string, _ bool, exact bool) []*pb.QueryR
 		}
 	}
 
-	if text == "" {
+	if query == "" {
 		slices.SortStableFunc(entries, func(a, b *pb.QueryResponse_Item) int {
 			ta, _ := time.Parse(time.RFC1123Z, a.Subtext)
 			tb, _ := time.Parse(time.RFC1123Z, b.Subtext)

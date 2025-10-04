@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os/exec"
 	"strconv"
@@ -11,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/abenz1267/elephant/internal/comm/handlers"
-	"github.com/abenz1267/elephant/internal/providers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/common/history"
@@ -23,7 +23,6 @@ var (
 	NamePretty = "Websearch"
 	config     *Config
 	prefixes   = make(map[string]int)
-	results    = providers.QueryData{}
 	h          = history.Load(Name)
 )
 
@@ -74,16 +73,9 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-	slog.Info(Name, "cleanup", qid)
-	results.Lock()
-	delete(results.Queries, qid)
-	results.Unlock()
-}
-
 const ActionSearch = "search"
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
@@ -92,18 +84,17 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		i, _ := strconv.Atoi(identifier)
 
 		for k := range prefixes {
-			if after, ok := strings.CutPrefix(arguments, k); ok {
-				arguments = after
+			if after, ok := strings.CutPrefix(query, k); ok {
+				query = after
 				break
 			}
 		}
 
-		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-		if len(splits) > 1 {
-			arguments = splits[1]
+		if args == "" {
+			args = query
 		}
 
-		url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(arguments)))
+		url := strings.ReplaceAll(config.Entries[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
 
 		prefix := common.LaunchPrefix("")
 
@@ -123,19 +114,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if config.History {
-			var last uint32
-
-			for k := range results.Queries[qid] {
-				if k > last {
-					last = k
-				}
-			}
-
-			if last != 0 {
-				h.Save(results.Queries[qid][last], identifier)
-			} else {
-				h.Save("", identifier)
-			}
+			h.Save(query, identifier)
 		}
 	default:
 		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
@@ -143,12 +122,8 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
-
-	if query != "" {
-		results.GetData(query, qid, iid, exact)
-	}
 
 	prefix := ""
 
@@ -218,6 +193,7 @@ func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.
 					Identifier: strconv.Itoa(k),
 					Text:       v.Name,
 					Subtext:    "",
+					Actions:    []string{"search"},
 					Icon:       icon,
 					Provider:   Name,
 					Score:      int32(100 - k),

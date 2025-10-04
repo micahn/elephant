@@ -7,17 +7,18 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
 	_ "embed"
 
-	"github.com/abenz1267/elephant/internal/providers"
+	"github.com/abenz1267/elephant/internal/comm/handlers"
 	"github.com/abenz1267/elephant/internal/util"
 	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
@@ -55,11 +56,6 @@ type HistoryItem struct {
 
 var history = []HistoryItem{}
 
-var (
-	resultMutex sync.Mutex
-	results     = make(map[uint32]map[string]*pb.QueryResponse_Item)
-)
-
 func Setup() {
 	config = &Config{
 		Config: common.Config{
@@ -94,39 +90,26 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-	resultMutex.Lock()
-	delete(results, qid)
-	resultMutex.Unlock()
-}
+func Activate(identifier, action string, query string, args string) {
+	i := slices.IndexFunc(history, func(item HistoryItem) bool {
+		return item.Identifier == identifier
+	})
 
-func Activate(qid uint32, identifier, action string, arguments string) {
-	var item *pb.QueryResponse_Item
 	var result string
-	var createHistoryItem bool
+	createHistoryItem := false
 
-	for _, v := range results {
-		if i, ok := v[identifier]; ok {
-			item = i
-			result = i.Text
-			createHistoryItem = true
+	if i != -1 {
+		result = history[i].Result
+	} else {
+		cmd := exec.Command("qalc", "-t", query)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			slog.Error(Name, "result", err)
+			return
 		}
-	}
 
-	for _, v := range history {
-		if v.Identifier == identifier {
-			result = v.Result
-			createHistoryItem = false
-		}
-	}
-
-	if result == "" {
-		slog.Error(Name, "activation", "item not found")
-		return
-	}
-
-	if action == "" {
-		action = ActionCopy
+		result = strings.TrimSpace(string(out))
+		createHistoryItem = true
 	}
 
 	switch action {
@@ -135,7 +118,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 		err := cmd.Start()
 		if err != nil {
-			slog.Error(Name, "actioncopy", err)
+			slog.Error(Name, "copy", err)
 		} else {
 			go func() {
 				cmd.Wait()
@@ -143,16 +126,10 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if createHistoryItem {
-			saveToHistory(item)
+			saveToHistory(query, result)
 		}
-
-		Cleanup(qid)
 	case ActionSave:
-		if createHistoryItem {
-			saveToHistory(item)
-		}
-
-		Cleanup(qid)
+		saveToHistory(query, result)
 	case ActionDelete:
 		i := 0
 
@@ -176,11 +153,14 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	}
 }
 
-func saveToHistory(item *pb.QueryResponse_Item) {
+func saveToHistory(query, result string) {
+	md5 := md5.Sum([]byte(query))
+	md5str := hex.EncodeToString(md5[:])
+
 	h := HistoryItem{
-		Identifier: item.Identifier,
-		Input:      item.Subtext,
-		Result:     item.Text,
+		Identifier: md5str,
+		Input:      query,
+		Result:     result,
 	}
 
 	history = append([]HistoryItem{h}, history...)
@@ -188,12 +168,8 @@ func saveToHistory(item *pb.QueryResponse_Item) {
 	saveHist()
 }
 
-func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse_Item {
 	start := time.Now()
-
-	if _, ok := results[qid]; !ok {
-		results[qid] = make(map[string]*pb.QueryResponse_Item)
-	}
 
 	entries := []*pb.QueryResponse_Item{}
 
@@ -231,15 +207,11 @@ func Query(qid uint32, iid uint32, query string, single bool, _ bool) []*pb.Quer
 
 			if err == nil {
 				e.Text = strings.TrimSpace(string(out))
-
-				resultMutex.Lock()
-				results[qid][md5str] = e
-				resultMutex.Unlock()
 			} else {
 				e.Text = "%DELETE%"
 			}
 
-			providers.AsyncChannels[qid][iid] <- e
+			handlers.UpdateItem(query, conn, e)
 		}()
 
 		entries = append(entries, e)

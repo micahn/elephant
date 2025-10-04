@@ -18,7 +18,7 @@ const (
 	ActionCopyFile = "copyfile"
 )
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	f, _ := paths.Load(identifier)
 	path := f.(*file).path
 

@@ -137,9 +137,9 @@ func (x *QueryRequest) GetExactsearch() bool {
 
 type QueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Qid           int32                  `protobuf:"varint,1,opt,name=qid,proto3" json:"qid,omitempty"`
-	Iid           int32                  `protobuf:"varint,2,opt,name=iid,proto3" json:"iid,omitempty"`
-	Item          *QueryResponse_Item    `protobuf:"bytes,3,opt,name=item,proto3" json:"item,omitempty"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Item          *QueryResponse_Item    `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
+	Qid           int32                  `protobuf:"varint,3,opt,name=qid,proto3" json:"qid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,18 +174,11 @@ func (*QueryResponse) Descriptor() ([]byte, []int) {
 	return file_query_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *QueryResponse) GetQid() int32 {
+func (x *QueryResponse) GetQuery() string {
 	if x != nil {
-		return x.Qid
+		return x.Query
 	}
-	return 0
-}
-
-func (x *QueryResponse) GetIid() int32 {
-	if x != nil {
-		return x.Iid
-	}
-	return 0
+	return ""
 }
 
 func (x *QueryResponse) GetItem() *QueryResponse_Item {
@@ -193,6 +186,13 @@ func (x *QueryResponse) GetItem() *QueryResponse_Item {
 		return x.Item
 	}
 	return nil
+}
+
+func (x *QueryResponse) GetQid() int32 {
+	if x != nil {
+		return x.Qid
+	}
+	return 0
 }
 
 type QueryResponse_Item struct {
@@ -398,11 +398,11 @@ const file_query_proto_rawDesc = "" +
 	"\n" +
 	"maxresults\x18\x03 \x01(\x05R\n" +
 	"maxresults\x12 \n" +
-	"\vexactsearch\x18\x04 \x01(\bR\vexactsearch\"\xc4\x04\n" +
-	"\rQueryResponse\x12\x10\n" +
-	"\x03qid\x18\x01 \x01(\x05R\x03qid\x12\x10\n" +
-	"\x03iid\x18\x02 \x01(\x05R\x03iid\x12*\n" +
-	"\x04item\x18\x03 \x01(\v2\x16.pb.QueryResponse.ItemR\x04item\x1a\xc3\x03\n" +
+	"\vexactsearch\x18\x04 \x01(\bR\vexactsearch\"\xc8\x04\n" +
+	"\rQueryResponse\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12*\n" +
+	"\x04item\x18\x02 \x01(\v2\x16.pb.QueryResponse.ItemR\x04item\x12\x10\n" +
+	"\x03qid\x18\x03 \x01(\x05R\x03qid\x1a\xc3\x03\n" +
 	"\x04Item\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\tR\n" +

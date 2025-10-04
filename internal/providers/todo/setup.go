@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -159,7 +160,7 @@ func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "checkbox-checked",
-			MinScore: 50,
+			MinScore: 100,
 		},
 		CreatePrefix:      "",
 		UrgentTimeFrame:   10,
@@ -240,10 +241,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Cleanup(qid uint32) {
-}
-
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
 		if after != "" {
 			store(after)
@@ -316,7 +314,7 @@ func loadItems() {
 	}
 }
 
-func Query(qid uint32, iid uint32, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 	urgent := time.Now().Add(time.Duration(config.UrgentTimeFrame) * time.Minute)
 

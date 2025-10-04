@@ -17,13 +17,19 @@ import (
 )
 
 const (
-	ActionPin   = "pin"
-	ActionUnpin = "unpin"
-	ActionStart = "start"
+	ActionPin     = "pin"
+	ActionPinUp   = "pinup"
+	ActionPinDown = "pindown"
+	ActionUnpin   = "unpin"
+	ActionStart   = "start"
 )
 
-func Activate(qid uint32, identifier, action string, arguments string) {
+func Activate(identifier, action string, query string, args string) {
 	switch action {
+	case ActionPinUp:
+		movePin(identifier, false)
+	case ActionPinDown:
+		movePin(identifier, true)
 	case ActionPin, ActionUnpin:
 		pinItem(identifier)
 		return
@@ -33,13 +39,6 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 	case ActionStart:
 		toRun := ""
 		prefix := common.LaunchPrefix(config.LaunchPrefix)
-
-		splits := strings.Split(arguments, common.GetElephantConfig().ArgumentDelimiter)
-		if len(splits) > 1 {
-			arguments = splits[1]
-		} else {
-			arguments = ""
-		}
 
 		parts := strings.Split(identifier, ":")
 
@@ -58,7 +57,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 			toRun = common.WrapWithTerminal(toRun)
 		}
 
-		cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s %s %s", prefix, toRun, arguments)))
+		cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s %s %s", prefix, toRun, args)))
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			Setsid: true,
 		}
@@ -74,19 +73,7 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 		}
 
 		if config.History {
-			var last uint32
-
-			for k := range results.Queries[qid] {
-				if k > last {
-					last = k
-				}
-			}
-
-			if last != 0 {
-				h.Save(results.Queries[qid][last], identifier)
-			} else {
-				h.Save("", identifier)
-			}
+			h.Save(query, identifier)
 		}
 
 		slog.Info(Name, "activated", identifier)
@@ -98,6 +85,35 @@ func Activate(qid uint32, identifier, action string, arguments string) {
 
 func isPinned(identifier string) bool {
 	return slices.Contains(pins, identifier)
+}
+
+func movePin(identifier string, down bool) {
+	index := -1
+	for i, pin := range pins {
+		if pin == identifier {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return
+	}
+
+	var newIndex int
+	if down {
+		newIndex = index + 1
+		if newIndex >= len(pins) {
+			return
+		}
+	} else {
+		newIndex = index - 1
+		if newIndex < 0 {
+			return
+		}
+	}
+
+	pins[index], pins[newIndex] = pins[newIndex], pins[index]
 }
 
 func pinItem(identifier string) {
