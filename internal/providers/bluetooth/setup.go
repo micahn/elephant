@@ -84,8 +84,8 @@ func Activate(identifier, action string, query string, args string) {
 
 	switch action {
 	case ActionFind:
+		find = true
 		handlers.ProviderUpdated <- "bluetooth:find"
-		find = !find
 		return
 	case ActionPair:
 		added = true
@@ -263,6 +263,7 @@ func getDevices() {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			slog.Error(Name, "find devices", err)
+			return
 		}
 
 		for l := range strings.Lines(string(out)) {
