@@ -8,10 +8,15 @@ Create custom menus.
 - use dmenu's as submenus
 - drag&drop files into other programs
 - copy file/path
+- define multiple actions per entry
 
 #### How to create a menu
 
 Default location for menu definitions is `~/.config/elephant/menus/`. Simply place a file in there, see examples below.
+
+#### Actions for submenus/dmenus
+
+Submenus/Dmenus will automatically get an action `open`.
 
 #### Examples
 
@@ -22,22 +27,58 @@ icon = "applications-other"
 global_search = true
 
 [[entries]]
+text = "Color Picker"
+keywords = ["color", "picker", "hypr"]
+actions = { "cp_use" = "wl-copy $(hyprpicker)" }
+icon = "color-picker"
+
+[[entries]]
+icon = "zoom-in"
+text = "Zoom Toggle"
+actions = { "zoom_use" = "hyprctl -q keyword cursor:zoom_factor $(hyprctl getoption cursor:zoom_factor -j | jq '(.float) | if . > 1 then 1 else 1.5 end')" }
+
+[[entries]]
 text = "Volume"
 async = "echo $(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
 icon = "audio-volume-high"
-action = "wpctl set-volume @DEFAULT_AUDIO_SINK@ %RESULT%"
+
+[entries.actions]
+"volume_raise" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+"
+"volume_lower" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"
+"volume_mute" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0"
+"volume_unmute" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 1"
+"volume_set" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ %RESULT%"
+
+[[entries]]
+keywords = ["disk", "drive", "space"]
+text = "Disk"
+actions = { "disk_copy" = "wl-copy '%RESULT%'" }
+async = """echo $(df -h / | tail -1 | awk '{print "Used: " $3 " - Available: " $4 " - Total: " $2}')"""
+icon = "drive-harddisk"
+
+[[entries]]
+text = "Mic"
+async = "echo $(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)"
+icon = "audio-input-microphone"
+actions = { "mic_set" = "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ %RESULT%" }
 
 [[entries]]
 text = "System"
 async = """echo $(echo "Memory: $(free -h | awk '/^Mem:/ {printf "%s/%s", $3, $2}') | CPU: $(top -bn1 | grep 'Cpu(s)' | awk '{printf "%.1f%%", 100 - $8}')")"""
 icon = "computer"
-action = ""
 
 [[entries]]
 text = "Today"
+keywords = ["date", "today", "calendar"]
 async = """echo $(date "+%H:%M - %d.%m. %A - KW %V")"""
 icon = "clock"
-action = ""
+actions = { "open_cal" = "xdg-open https://calendar.google.com" }
+
+[[entries]]
+text = "uuctl"
+keywords = ["uuctl"]
+icon = "applications-system"
+submenu = "dmenu:uuctl"
 ```
 
 ```toml
@@ -48,23 +89,28 @@ global_search = true
 
 [[entries]]
 text = "View"
-action = "vimiv ~/Pictures/"
+actions = { "view" = "vimiv ~/Pictures/" }
 
 [[entries]]
 text = "Annotate"
-action = "wl-paste | satty -f -"
+actions = { "annotate" = "wl-paste | satty -f -" }
 
 [[entries]]
 text = "Toggle Record"
-action = "record"
+actions = { "record" = "record" }
+
+[[entries]]
+text = "OCR"
+keywords = ["ocr", "text recognition", "OCR"]
+actions = { "ocr" = "wayfreeze --hide-cursor --after-freeze-cmd 'grim -g \"$(slurp)\" - | tesseract stdin stdout -l deu+eng | wl-copy; killall wayfreeze'" }
 
 [[entries]]
 text = "Screenshot Region"
-action = "wayfreeze --after-freeze-cmd 'IMG=~/Pictures/$(date +%Y-%m-%d_%H-%M-%S).png && grim -g \"$(slurp)\" $IMG && wl-copy < $IMG; killall wayfreeze'"
+actions = { "region" = "wayfreeze --hide-cursor --after-freeze-cmd 'IMG=~/Pictures/$(date +%Y-%m-%d_%H-%M-%S).png && grim -g \"$(slurp)\" $IMG && wl-copy < $IMG; killall wayfreeze'" }
 
 [[entries]]
 text = "Screenshot Window"
-action = "wayfreeze --after-freeze-cmd 'IMG=~/Pictures/$(date +%Y-%m-%d_%H-%M-%S).png && grim $IMG && wl-copy < $IMG; killall wayfreeze'"
+actions = { "window" = "wayfreeze --after-freeze-cmd 'IMG=~/Pictures/$(date +%Y-%m-%d_%H-%M-%S).png && grim $IMG && wl-copy < $IMG; killall wayfreeze'" }
 
 [[entries]]
 text = "other menu"
