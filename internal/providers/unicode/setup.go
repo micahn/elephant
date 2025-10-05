@@ -141,7 +141,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 				Text:       k,
 				Icon:       v,
 				Provider:   Name,
-				Actions:    []string{"copy"},
+				Actions:    []string{ActionRunCmd},
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     start,
 					Field:     "text",
