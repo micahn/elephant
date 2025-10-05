@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -65,6 +66,18 @@ func Setup() {
 			handlers.WebsearchPrefixes[v.Prefix] = v.Name
 		}
 	}
+
+	slices.SortFunc(config.Entries, func(a, b Entry) int {
+		if a.Default {
+			return -1
+		}
+
+		if b.Default {
+			return -1
+		}
+
+		return 0
+	})
 }
 
 func PrintDoc() {
@@ -181,7 +194,9 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 				entries = append(entries, e)
 			}
 		}
-	} else {
+	}
+
+	if len(entries) == 0 || !single {
 		for k, v := range config.Entries {
 			if v.Default || v.Prefix == prefix {
 				icon := v.Icon
