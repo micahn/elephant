@@ -37,7 +37,10 @@ var (
 	mut             sync.Mutex
 )
 
-const SubscriptionDataChanged = 0
+const (
+	SubscriptionDataChanged = 0
+	SubscriptionHealthCheck = 230
+)
 
 type sub struct {
 	sid      uint32
@@ -53,6 +56,8 @@ func init() {
 	subs = make(map[uint32]*sub)
 	ProviderUpdated = make(chan string)
 
+	// go checkHealth()
+
 	// handle general realtime subs
 	go func() {
 		for p := range ProviderUpdated {
@@ -66,15 +71,43 @@ func init() {
 				p = "bluetooth"
 			}
 
+			toDelete := []uint32{}
+
 			for k, v := range subs {
 				if v.provider == p && v.interval == 0 && v.query == "" {
 					if ok := updated(v.conn, value); !ok {
-						delete(subs, k)
+						toDelete = append(toDelete, k)
 					}
 				}
 			}
+
+			for _, v := range toDelete {
+				delete(subs, v)
+			}
 		}
 	}()
+}
+
+func checkHealth() {
+	for {
+		time.Sleep(1 * time.Second)
+
+		toDelete := []uint32{}
+
+		for k, v := range subs {
+			var buffer bytes.Buffer
+			buffer.Write([]byte{SubscriptionHealthCheck})
+
+			_, err := v.conn.Write(buffer.Bytes())
+			if err != nil {
+				toDelete = append(toDelete, k)
+			}
+		}
+
+		for _, v := range toDelete {
+			delete(subs, v)
+		}
+	}
 }
 
 func subscribe(interval int, provider, query string, conn net.Conn) {
@@ -164,7 +197,7 @@ func updated(conn net.Conn, value string) bool {
 
 	_, err = conn.Write(buffer.Bytes())
 	if err != nil {
-		slog.Error("queryrequesthandler", "write", err)
+		slog.Debug("subscriptionrequesthandler", "write", err, "value", value)
 		return false
 	}
 

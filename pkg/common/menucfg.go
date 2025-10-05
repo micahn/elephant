@@ -114,7 +114,7 @@ func LoadMenus() {
 				}
 
 				if v.SubMenu != "" {
-					m.Entries[k].Identifier = fmt.Sprintf("keepopen:menus:%s", v.SubMenu)
+					m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
 				}
 			}
 

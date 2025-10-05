@@ -45,7 +45,6 @@ func Activate(identifier, action string, query string, args string) {
 		var e common.Entry
 		var menu common.Menu
 
-		identifier = strings.TrimPrefix(identifier, "keepopen:")
 		identifier = strings.TrimPrefix(identifier, "menus:")
 
 		openmenu := false
@@ -176,6 +175,10 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 
 			for k := range me.Actions {
 				actions = append(actions, k)
+			}
+
+			if strings.HasPrefix(me.Identifier, "menus:") {
+				actions = append(actions, "open")
 			}
 
 			if len(actions) == 0 {
