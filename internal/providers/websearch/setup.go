@@ -37,6 +37,7 @@ type Config struct {
 	History                 bool    `koanf:"history" desc:"make use of history for sorting" default:"true"`
 	HistoryWhenEmpty        bool    `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
 	EnginesAsActions        bool    `koanf:"engines_as_actions" desc:"run engines as actions" default:"true"`
+	TextPrefix              string  `koanf:"text_prefix" desc:"prefix for the entry text" default:"Search: "`
 }
 
 type Entry struct {
@@ -57,6 +58,7 @@ func Setup() {
 		History:                 true,
 		HistoryWhenEmpty:        false,
 		EnginesAsActions:        false,
+		TextPrefix:              "Search: ",
 	}
 
 	common.LoadConfig(Name, config)
@@ -175,7 +177,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 		e := &pb.QueryResponse_Item{
 			Identifier: "websearch",
-			Text:       fmt.Sprintf("Search: %s", query),
+			Text:       fmt.Sprintf("%s%s", config.TextPrefix, query),
 			Actions:    a,
 			Icon:       Icon(),
 			Provider:   Name,
