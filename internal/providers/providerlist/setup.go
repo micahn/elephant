@@ -63,7 +63,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			for _, v := range common.Menus {
 				identifier := fmt.Sprintf("%s:%s", "menus", v.Name)
 
-				if slices.Contains(config.Hidden, identifier) {
+				if slices.Contains(config.Hidden, identifier) || v.HideFromProviderlist {
 					continue
 				}
 

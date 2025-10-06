@@ -36,7 +36,11 @@ func PrintDoc() {
 
 func Setup() {}
 
-const ActionGoParent = "menus:parent"
+const (
+	ActionGoParent = "menus:parent"
+	ActionOpen     = "menus:open"
+	ActionDefault  = "menus:default"
+)
 
 func Activate(identifier, action string, query string, args string) {
 	switch action {
@@ -189,11 +193,11 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			}
 
 			if strings.HasPrefix(me.Identifier, "menus:") {
-				actions = append(actions, "open")
+				actions = append(actions, ActionOpen)
 			}
 
 			if len(actions) == 0 {
-				actions = append(actions, "default")
+				actions = append(actions, ActionDefault)
 			}
 
 			e := &pb.QueryResponse_Item{
