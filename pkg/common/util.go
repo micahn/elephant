@@ -6,12 +6,12 @@ import (
 )
 
 func ReplaceResultOrStdinCmd(replace, result string) *exec.Cmd {
-	if !strings.Contains(replace, "%RESULT%") {
+	if !strings.Contains(replace, "%VALUE%") {
 		cmd := exec.Command("sh", "-c", replace)
 
 		cmd.Stdin = strings.NewReader(result)
 		return cmd
 	}
 
-	return exec.Command("sh", "-c", strings.ReplaceAll(replace, "%RESULT%", result))
+	return exec.Command("sh", "-c", strings.ReplaceAll(replace, "%VALUE%", result))
 }

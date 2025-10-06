@@ -45,7 +45,7 @@ type Config struct {
 	Placeholder   string `koanf:"placeholder" desc:"placeholder to display for async update" default:"calculating..."`
 	RequireNumber bool   `koanf:"require_number" desc:"don't perform if query does not contain a number" default:"true"`
 	MinChars      int    `koanf:"min_chars" desc:"don't perform if query is shorter than min_chars" default:"3"`
-	Command       string `koanf:"command" desc:"default command to be executed. supports %RESULT%." default:"wl-copy"`
+	Command       string `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wl-copy"`
 }
 
 type HistoryItem struct {

@@ -101,10 +101,10 @@ func Activate(identifier, action string, query string, args string) {
 			val = args
 		}
 
-		if !strings.Contains(run, "%RESULT%") {
+		if !strings.Contains(run, "%VALUE%") {
 			pipe = true
 		} else {
-			run = strings.ReplaceAll(run, "%RESULT%", val)
+			run = strings.ReplaceAll(run, "%VALUE%", val)
 		}
 
 		if terminal {

@@ -34,7 +34,7 @@ type Config struct {
 	Locale           string `koanf:"locale" desc:"locale to use for symbols" default:"en"`
 	History          bool   `koanf:"history" desc:"make use of history for sorting" default:"true"`
 	HistoryWhenEmpty bool   `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
-	Command          string `koanf:"command" desc:"default command to be executed. supports %RESULT%." default:"wl-copy"`
+	Command          string `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wl-copy"`
 }
 
 var (

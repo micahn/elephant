@@ -47,12 +47,12 @@ icon = "audio-volume-high"
 "volume_lower" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"
 "volume_mute" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0"
 "volume_unmute" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 1"
-"volume_set" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ %RESULT%"
+"volume_set" = "wpctl set-volume @DEFAULT_AUDIO_SINK@ %VALUE%"
 
 [[entries]]
 keywords = ["disk", "drive", "space"]
 text = "Disk"
-actions = { "disk_copy" = "wl-copy '%RESULT%'" }
+actions = { "disk_copy" = "wl-copy '%VALUE%'" }
 async = """echo $(df -h / | tail -1 | awk '{print "Used: " $3 " - Available: " $4 " - Total: " $2}')"""
 icon = "drive-harddisk"
 
@@ -60,7 +60,7 @@ icon = "drive-harddisk"
 text = "Mic"
 async = "echo $(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)"
 icon = "audio-input-microphone"
-actions = { "mic_set" = "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ %RESULT%" }
+actions = { "mic_set" = "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ %VALUE%" }
 
 [[entries]]
 text = "System"
