@@ -32,6 +32,7 @@ type Menu struct {
 	History          bool     `toml:"history" desc:"make use of history for sorting"`
 	HistoryWhenEmpty bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
 	MinScore         int32    `koanf:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
+	Parent           string   `koanf:"parent" desc:"defines the parent menu" default:""`
 }
 
 type Entry struct {

@@ -36,8 +36,19 @@ func PrintDoc() {
 
 func Setup() {}
 
+const ActionGoParent = "menus:parent"
+
 func Activate(identifier, action string, query string, args string) {
 	switch action {
+	case ActionGoParent:
+		identifier = strings.TrimPrefix(identifier, "menus:")
+
+		for _, v := range common.Menus {
+			if identifier == v.Name {
+				handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, v.Parent)
+				break
+			}
+		}
 	case history.ActionDelete:
 		h.Remove(identifier)
 		return
