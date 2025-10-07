@@ -5,9 +5,7 @@ Create custom menus.
 #### Features
 
 - seamless menus
-- use dmenu's as submenus
-- drag&drop files into other programs
-- copy file/path
+- create submenus
 - define multiple actions per entry
 
 #### How to create a menu
@@ -115,4 +113,28 @@ actions = { "window" = "wayfreeze --after-freeze-cmd 'IMG=~/Pictures/$(date +%Y-
 [[entries]]
 text = "other menu"
 submenu = "other"
+```
+
+```toml
+name = "bookmarks"
+name_pretty = "Bookmarks"
+icon = "bookmark"
+global_search = true
+action = "xdg-open %VALUE%"
+
+[[entries]]
+text = "Walker"
+value = "https://github.com/abenz1267/walker"
+
+[[entries]]
+text = "Elephant"
+value = "https://github.com/abenz1267/elephant"
+
+[[entries]]
+text = "Drive"
+value = "https://drive.google.com"
+
+[[entries]]
+text = "Prime"
+value = "https://www.amazon.de/gp/video/storefront/"
 ```
