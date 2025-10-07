@@ -19,16 +19,14 @@ type Config struct {
 }
 
 type ElephantConfig struct {
-	ArgumentDelimiter      string `koanf:"argument_delimiter" desc:"global delimiter for arguments" default:"#"`
-	AutoDetectLaunchPrefix bool   `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
-	OverloadLocalEnv       bool   `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
+	AutoDetectLaunchPrefix bool `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
+	OverloadLocalEnv       bool `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
 }
 
 var elephantConfig *ElephantConfig
 
 func LoadGlobalConfig() {
 	elephantConfig = &ElephantConfig{
-		ArgumentDelimiter:      "#",
 		AutoDetectLaunchPrefix: true,
 		OverloadLocalEnv:       false,
 	}

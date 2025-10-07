@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/abenz1267/elephant/internal/providers"
-	"github.com/abenz1267/elephant/pkg/common"
 	"github.com/abenz1267/elephant/pkg/pb/pb"
 	"google.golang.org/protobuf/proto"
 )
@@ -29,17 +28,8 @@ func (a *ActivateRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		provider = strings.Split(provider, ":")[0]
 	}
 
-	q, args := "", ""
-	parts := strings.SplitN(req.Query, common.GetElephantConfig().ArgumentDelimiter, 2)
-	if len(parts) == 2 {
-		q = parts[0]
-		args = parts[1]
-	} else {
-		q = parts[0]
-	}
-
 	if p, ok := providers.Providers[provider]; ok {
-		p.Activate(req.Identifier, req.Action, q, args)
+		p.Activate(req.Identifier, req.Action, req.Query, req.Arguments)
 
 		var buffer bytes.Buffer
 		buffer.Write([]byte{ActivationFinished})
