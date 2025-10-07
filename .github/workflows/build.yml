@@ -272,24 +272,38 @@ jobs:
         ls -la *.tar.gz
 
     - name: Generate changelog
-      id: changelog
-      uses: mikepenz/release-changelog-builder-action@v4
-      with:
-        configuration: ".github/changelog_config.json"
-        ignorePreReleases: false
-        fetchViaCommits: true
-        commitMode: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Get previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+        # Generate changelog
+        echo "# Changes in ${{ steps.version.outputs.VERSION }}" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+
+        if [ -n "$PREV_TAG" ]; then
+          echo "## Commits since $PREV_TAG:" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "## All commits:" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        fi
+
+        if [ -f "BREAKING.md" ]; then
+          echo "" >> CHANGELOG.md
+          echo "## ⚠️ Breaking Changes" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          cat BREAKING.md >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+        fi
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.VERSION }}
         name: Release ${{ steps.version.outputs.VERSION }}
-        body: ${{ steps.changelog.outputs.changelog }}
+        body_path: CHANGELOG.md
         draft: false
-        prerelease: false
+        prerelease: ${{ contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'rc') }}
         files: build/*.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

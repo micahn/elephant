@@ -1,5 +1,3 @@
-# Breaking changes for the next release
-
 ## Custom Menus
 
 The actions have been harmonized to be more uniform:
