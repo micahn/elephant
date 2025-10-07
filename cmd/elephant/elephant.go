@@ -65,7 +65,7 @@ func main() {
 							data := `
 [Unit]
 Description=Elephant
-After=xdg-desktop-autostart.target
+After=graphical-session.target
 
 [Service]
 Type=simple
