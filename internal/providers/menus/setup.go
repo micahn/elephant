@@ -136,9 +136,9 @@ func Activate(identifier, action string, query string, args string) {
 			cmd.Stdin = strings.NewReader(val)
 		}
 
-		err := cmd.Run()
+		err, out := cmd.CombinedOutput()
 		if err != nil {
-			slog.Error(Name, "activate", err)
+			slog.Error(Name, "activate", err, "msg", out)
 		} else {
 			go func() {
 				cmd.Wait()

@@ -40,7 +40,7 @@ type Entry struct {
 	Text     string            `toml:"text" desc:"text for entry"`
 	Async    string            `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
 	Subtext  string            `toml:"subtext" desc:"sub text for entry"`
-	Value    string            `toml:"value" desc:"value to be used for the action, defaults to the text if empty"`
+	Value    string            `toml:"value" desc:"value to be used for the action."`
 	Actions  map[string]string `toml:"actions" desc:"actions items can use"`
 	Terminal bool              `toml:"terminal" desc:"runs action in terminal if true"`
 	Icon     string            `toml:"icon" desc:"icon for entry"`
@@ -110,10 +110,6 @@ func LoadMenus() {
 			for k, v := range m.Entries {
 				m.Entries[k].Menu = m.Name
 				m.Entries[k].Identifier = v.CreateIdentifier()
-
-				if v.Value == "" && v.Async == "" {
-					m.Entries[k].Value = v.Text
-				}
 
 				if v.SubMenu != "" {
 					m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
