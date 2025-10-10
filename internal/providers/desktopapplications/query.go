@@ -159,18 +159,16 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			subtext := v.Name
 
 			if query != "" {
-				if config.ActionMinScore > 0 {
-					score, positions, fs = common.FuzzyScore(query, a.Name, exact)
+				match, score, positions, fs, ok = calcScore(query, &a, exact)
 
+				if ok && match != a.Name {
+					subtext = match
+					field = "subtext"
+				}
+
+				if config.ActionMinScore > 0 {
 					if score < config.MinScore {
 						continue
-					}
-				} else {
-					match, score, positions, fs, ok = calcScore(query, &a, exact)
-
-					if ok && match != a.Name {
-						subtext = match
-						field = "subtext"
 					}
 				}
 			}
