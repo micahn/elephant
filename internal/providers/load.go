@@ -36,8 +36,7 @@ func Load(setup bool) {
 
 	var mut sync.Mutex
 	have := []string{}
-
-	dirs := []string{filepath.Join(common.ConfigDir(), "providers"), "/etc/xdg/elephant/providers", os.Getenv("ELEPHANT_PROVIDER_DIR")}
+	dirs := append(common.ConfigDirs(), os.Getenv("ELEPHANT_PROVIDER_DIR"))
 
 	Providers = make(map[string]Provider)
 	QueryProviders = make(map[uint32][]string)
