@@ -58,7 +58,7 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s %s %s", prefix, toRun, args)))
-		cmd.Path = files[parts[0]].Path
+		// cmd.Path = files[parts[0]].Path
 
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			Setsid: true,
