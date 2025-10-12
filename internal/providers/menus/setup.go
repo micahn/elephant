@@ -151,7 +151,7 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 	menu := ""
@@ -159,7 +159,6 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 	initialQuery := query
 
 	split := strings.Split(query, ":")
-	single := len(split) > 1
 
 	if len(split) > 1 {
 		menu = split[0]
@@ -167,7 +166,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 	}
 
 	for _, v := range common.Menus {
-		if menu != "" && v.Name != menu || (!single && !v.GlobalSearch) {
+		if menu != "" && v.Name != menu {
 			continue
 		}
 
@@ -180,7 +179,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 
 			sub := me.Subtext
 
-			if !single && v.GlobalSearch {
+			if !single {
 				if sub == "" {
 					sub = v.NamePretty
 				}

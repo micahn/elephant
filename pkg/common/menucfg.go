@@ -25,7 +25,6 @@ type Menu struct {
 	Description          string   `toml:"description" desc:"used as a subtext"`
 	Icon                 string   `toml:"icon" desc:"default icon"`
 	Action               string   `toml:"action" desc:"default menu action to use"`
-	GlobalSearch         bool     `toml:"global_search" desc:"sets if entries in this menu should be searchable globally without being in the menu"`
 	Entries              []Entry  `toml:"entries" desc:"menu items"`
 	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
 	Keywords             []string `toml:"keywords" desc:"searchable keywords"`
