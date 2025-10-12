@@ -170,9 +170,9 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			continue
 		}
 
-		icon := v.Icon
-
 		for k, me := range v.Entries {
+			icon := v.Icon
+
 			if me.Icon != "" {
 				icon = me.Icon
 			}
