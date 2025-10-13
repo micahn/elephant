@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"log/slog"
 	"net"
@@ -103,6 +104,19 @@ func loadFromFile() {
 			}
 		}
 	}
+}
+
+func cleanupImages() {
+	d, _ := os.UserCacheDir()
+	folder := filepath.Join(d, "elephant", "clipboardimages")
+
+	filepath.Walk(folder, func(path string, info fs.FileInfo, err error) error {
+		if !info.IsDir() {
+			os.Remove(path)
+		}
+
+		return nil
+	})
 }
 
 func saveToFile() {
@@ -411,6 +425,7 @@ func Activate(identifier, action string, query string, args string) {
 		clipboardhistory = make(map[string]*Item)
 
 		saveToFile()
+		cleanupImages()
 		mu.Unlock()
 	case ActionCopy:
 		cmd := exec.Command("sh", "-c", config.Command)
