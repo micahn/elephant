@@ -9,9 +9,11 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	"golang.org/x/net/html"
 )
 
 var (
@@ -175,6 +178,8 @@ func update() {
 		return
 	}
 
+	mimetype := mt[0]
+
 	isImg := false
 	isFF, isChrome := false, false
 
@@ -197,8 +202,22 @@ func update() {
 	}
 
 	if (isFF || isChrome) && isImg {
-		slog.Debug(Name, "error", "can't save images from browsers")
-		return
+		url := strings.ReplaceAll(strings.Fields(string(out))[0], "\x00", "")
+
+		if isFF {
+			html, err := html.Parse(bytes.NewReader(out))
+			if err != nil {
+				panic(err)
+			}
+
+			url = getImgSrc(html)
+		}
+
+		out, mimetype = downloadImage(url)
+
+		if mimetype == "" || len(out) == 0 {
+			return
+		}
 	}
 
 	md5 := md5.Sum(out)
@@ -220,13 +239,17 @@ func update() {
 			State:   StateEditable,
 		}
 	} else {
-		if file := saveImg(out, imgTypes[mt[0]]); file != "" {
-			clipboardhistory[md5str] = &Item{
-				Img:      file,
-				Mimetype: mt[0],
-				Time:     time.Now(),
-				State:    StateEditable,
+		if val, ok := imgTypes[mimetype]; ok {
+			if file := saveImg(out, val); file != "" {
+				clipboardhistory[md5str] = &Item{
+					Img:      file,
+					Mimetype: mimetype,
+					Time:     time.Now(),
+					State:    StateEditable,
+				}
 			}
+		} else {
+			return
 		}
 	}
 
@@ -482,4 +505,47 @@ func getMimetypes() []string {
 
 func Icon() string {
 	return config.Icon
+}
+
+func getImgSrc(n *html.Node) string {
+	if n.Type == html.ElementNode && n.Data == "img" {
+		for _, attr := range n.Attr {
+			if attr.Key == "src" {
+				return attr.Val
+			}
+		}
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if src := getImgSrc(c); src != "" {
+			return src
+		}
+	}
+
+	return ""
+}
+
+func downloadImage(url string) ([]byte, string) {
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println(url)
+		slog.Error(Name, "download", err)
+		return nil, ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Error(Name, "download status", err)
+		return nil, ""
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error(Name, "download read", err)
+		return nil, ""
+	}
+
+	return data, contentType
 }

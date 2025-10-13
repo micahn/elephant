@@ -29,5 +29,6 @@ require (
 	github.com/knadh/koanf/providers/structs v1.0.0
 	github.com/knadh/koanf/v2 v2.2.2
 	github.com/urfave/cli/v3 v3.4.1
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/net v0.46.0
+	golang.org/x/sys v0.37.0 // indirect
 )
