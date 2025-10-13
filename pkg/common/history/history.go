@@ -31,6 +31,9 @@ type History struct {
 }
 
 func (h *History) Remove(identifier string) {
+	mut.Lock()
+	defer mut.Unlock()
+
 	for _, v := range h.Data {
 		delete(v, identifier)
 	}
@@ -86,6 +89,9 @@ func (h *History) writeFile() {
 }
 
 func (h *History) FindUsage(query, identifier string) (int, time.Time, int) {
+	mut.Lock()
+	defer mut.Unlock()
+
 	var usage int
 	var lastUsed time.Time
 

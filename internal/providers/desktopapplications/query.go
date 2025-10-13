@@ -75,11 +75,10 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			if i != -1 {
 				pinned = true
 				score = 1000000 - int32(i)
-				usageScore = score
 			}
 		}
 
-		if usageScore != 0 || config.ShowActions && config.ShowGeneric || !config.ShowActions || (config.ShowActions && len(v.Actions) == 0) || query == "" {
+		if score != 0 || usageScore != 0 || config.ShowActions && config.ShowGeneric || !config.ShowActions || (config.ShowActions && len(v.Actions) == 0) || query == "" {
 			if score >= config.MinScore || query == "" {
 				state := []string{}
 				a := []string{ActionStart}
@@ -189,11 +188,10 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 				if i != -1 {
 					pinned = true
 					score = 1000000 - int32(i)
-					usageScore = score
 				}
 			}
 
-			if (query == "" && config.ShowActionsWithoutQuery) || (query != "" && config.ShowActions) || usageScore != 0 {
+			if (query == "" && config.ShowActionsWithoutQuery) || (query != "" && config.ShowActions) || usageScore != 0 || score != 0 {
 				if score >= config.MinScore || query == "" {
 					state := []string{}
 
