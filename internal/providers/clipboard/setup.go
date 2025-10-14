@@ -168,7 +168,7 @@ func handleChange() {
 }
 
 var (
-	ignoreMimetypes   = []string{"x-kde-passwordManagerHint"}
+	ignoreMimetypes   = []string{"x-kde-passwordManagerHint", "text/uri-list"}
 	firefoxMimetypes  = []string{"text/_moz_htmlcontext"}
 	chromiumMimetypes = []string{"chromium/x-source-url"}
 )
