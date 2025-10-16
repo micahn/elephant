@@ -130,113 +130,116 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 		}
 
 		// check actions
-		for _, a := range v.Actions {
-			identifier := fmt.Sprintf("%s:%s", k, a.Action)
+		if config.ShowActions {
+			for _, a := range v.Actions {
+				identifier := fmt.Sprintf("%s:%s", k, a.Action)
 
-			actions := []string{ActionStart}
+				actions := []string{ActionStart}
 
-			if identifier == alias {
-				entries = append(entries, &pb.QueryResponse_Item{
-					Identifier: identifier,
-					Score:      1_000_000,
-					Actions:    actions,
-					Text:       a.Name,
-					Type:       pb.QueryResponse_REGULAR,
-					Subtext:    v.Name,
-					Icon:       a.Icon,
-					Provider:   Name,
-				})
-				continue
-			}
-
-			var match string
-			var ok bool
-			var score int32
-			var positions []int32
-			var fs int32
-			field := "text"
-			subtext := v.Name
-
-			if query != "" {
-				match, score, positions, fs, ok = calcScore(query, &a, exact)
-
-				if ok && match != a.Name {
-					subtext = match
-					field = "subtext"
-				}
-
-				if config.ActionMinScore > 0 {
-					if score < config.MinScore {
-						continue
-					}
-				}
-			}
-
-			var usageScore int32
-			if config.History {
-				if score > config.MinScore || query == "" && config.HistoryWhenEmpty {
-					usageScore = h.CalcUsageScore(query, identifier)
-					score = score + usageScore
-				}
-			}
-
-			pinned := false
-
-			if query == "" {
-				i := slices.Index(pins, identifier)
-
-				if i != -1 {
-					pinned = true
-					score = 1000000 - int32(i)
-				}
-			}
-
-			if (query == "" && config.ShowActionsWithoutQuery) || (query != "" && config.ShowActions) || usageScore != 0 || score != 0 {
-				if score >= config.MinScore || query == "" {
-					state := []string{}
-
-					if usageScore != 0 {
-						state = append(state, "history")
-						actions = append(actions, history.ActionDelete)
-					}
-
-					if pinned {
-						state = append(state, "pinned")
-						actions = append(actions, ActionUnpin)
-
-						i := slices.Index(pins, identifier)
-
-						if i != 0 {
-							actions = append(actions, ActionPinUp)
-						}
-
-						if i != len(pins)-1 {
-							actions = append(actions, ActionPinDown)
-						}
-					} else {
-						state = append(state, "unpinned")
-						actions = append(actions, ActionPin)
-					}
-
+				if identifier == alias {
 					entries = append(entries, &pb.QueryResponse_Item{
 						Identifier: identifier,
-						Score:      score,
+						Score:      1_000_000,
 						Actions:    actions,
 						Text:       a.Name,
 						Type:       pb.QueryResponse_REGULAR,
-						State:      state,
-						Subtext:    subtext,
+						Subtext:    v.Name,
 						Icon:       a.Icon,
 						Provider:   Name,
-						Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
-							Start:     fs,
-							Field:     field,
-							Positions: positions,
-						},
 					})
+					continue
+				}
+
+				var match string
+				var ok bool
+				var score int32
+				var positions []int32
+				var fs int32
+				field := "text"
+				subtext := v.Name
+
+				if query != "" {
+					match, score, positions, fs, ok = calcScore(query, &a, exact)
+
+					if ok && match != a.Name {
+						subtext = match
+						field = "subtext"
+					}
+
+					if config.ActionMinScore > 0 {
+						if score < config.MinScore {
+							continue
+						}
+					}
+				}
+
+				var usageScore int32
+				if config.History {
+					if score > config.MinScore || query == "" && config.HistoryWhenEmpty {
+						usageScore = h.CalcUsageScore(query, identifier)
+						score = score + usageScore
+					}
+				}
+
+				pinned := false
+
+				if query == "" {
+					i := slices.Index(pins, identifier)
+
+					if i != -1 {
+						pinned = true
+						score = 1000000 - int32(i)
+					}
+				}
+
+				if (query == "" && config.ShowActionsWithoutQuery) || query != "" || usageScore != 0 || score != 0 {
+					if score >= config.MinScore || query == "" {
+						state := []string{}
+
+						if usageScore != 0 {
+							state = append(state, "history")
+							actions = append(actions, history.ActionDelete)
+						}
+
+						if pinned {
+							state = append(state, "pinned")
+							actions = append(actions, ActionUnpin)
+
+							i := slices.Index(pins, identifier)
+
+							if i != 0 {
+								actions = append(actions, ActionPinUp)
+							}
+
+							if i != len(pins)-1 {
+								actions = append(actions, ActionPinDown)
+							}
+						} else {
+							state = append(state, "unpinned")
+							actions = append(actions, ActionPin)
+						}
+
+						entries = append(entries, &pb.QueryResponse_Item{
+							Identifier: identifier,
+							Score:      score,
+							Actions:    actions,
+							Text:       a.Name,
+							Type:       pb.QueryResponse_REGULAR,
+							State:      state,
+							Subtext:    subtext,
+							Icon:       a.Icon,
+							Provider:   Name,
+							Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
+								Start:     fs,
+								Field:     field,
+								Positions: positions,
+							},
+						})
+					}
 				}
 			}
 		}
+
 	}
 
 	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
