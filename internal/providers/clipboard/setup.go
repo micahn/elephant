@@ -232,6 +232,18 @@ func updateImage() {
 	md5 := md5.Sum(out)
 	md5str := hex.EncodeToString(md5[:])
 
+	mt := getMimetypes()
+
+	// ignore gimp for now
+	if slices.Contains(mt, "image/x-xcf") {
+		return
+	}
+
+	if val, ok := clipboardhistory[md5str]; ok {
+		val.Time = time.Now()
+		return
+	}
+
 	if file := saveImg(out, "raw"); file != "" {
 		clipboardhistory[md5str] = &Item{
 			Img:   file,
@@ -255,6 +267,10 @@ func updateText() {
 
 		slog.Error("clipboard", "error", err)
 
+		return
+	}
+
+	if strings.TrimSpace(string(out)) == "" {
 		return
 	}
 
