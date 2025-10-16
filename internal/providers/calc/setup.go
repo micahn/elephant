@@ -46,6 +46,7 @@ type Config struct {
 	RequireNumber bool   `koanf:"require_number" desc:"don't perform if query does not contain a number" default:"true"`
 	MinChars      int    `koanf:"min_chars" desc:"don't perform if query is shorter than min_chars" default:"3"`
 	Command       string `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wl-copy"`
+	Async         bool   `koanf:"async" desc:"calculation will be send async" default:"true"`
 }
 
 type HistoryItem struct {
@@ -77,6 +78,7 @@ func Setup() {
 		RequireNumber: true,
 		MinChars:      3,
 		Command:       "wl-copy",
+		Async:         true,
 	}
 
 	common.LoadConfig(Name, config)
@@ -212,19 +214,28 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 			Actions:    []string{ActionSave, ActionCopy},
 		}
 
-		go func() {
+		if config.Async {
+			go func() {
+				cmd := exec.Command("qalc", "-t", query)
+				out, err := cmd.CombinedOutput()
+
+				if err == nil {
+					e.Text = strings.TrimSpace(string(out))
+				} else {
+					slog.Error(Name, "qalc", err, "out", out)
+					e.Text = "%DELETE%"
+				}
+
+				handlers.UpdateItem(query, conn, e)
+			}()
+		} else {
 			cmd := exec.Command("qalc", "-t", query)
 			out, err := cmd.CombinedOutput()
 
 			if err == nil {
 				e.Text = strings.TrimSpace(string(out))
-			} else {
-				slog.Error(Name, "qalc", err, "out", out)
-				e.Text = "%DELETE%"
 			}
-
-			handlers.UpdateItem(query, conn, e)
-		}()
+		}
 
 		entries = append(entries, e)
 	}
