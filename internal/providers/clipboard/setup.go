@@ -47,11 +47,10 @@ var readme string
 const StateEditable = "editable"
 
 type Item struct {
-	Content  string
-	Img      string
-	Mimetype string
-	Time     time.Time
-	State    string
+	Content string
+	Img     string
+	Time    time.Time
+	State   string
 }
 
 type Config struct {
@@ -85,7 +84,8 @@ func Setup() {
 
 	loadFromFile()
 
-	go handleChange()
+	go handleChangeImage()
+	go handleChangeText()
 
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
 }
@@ -120,6 +120,10 @@ func cleanupImages() {
 }
 
 func saveToFile() {
+	if len(clipboardhistory) > config.MaxItems {
+		trim()
+	}
+
 	var b bytes.Buffer
 	encoder := gob.NewEncoder(&b)
 
@@ -141,8 +145,8 @@ func saveToFile() {
 	}
 }
 
-func handleChange() {
-	cmd := exec.Command("wl-paste", "--watch", "echo", "")
+func handleChangeText() {
+	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "echo", "")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -163,18 +167,64 @@ func handleChange() {
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		update()
+		updateText()
 	}
 }
 
-var (
-	ignoreMimetypes   = []string{"x-kde-passwordManagerHint", "text/uri-list"}
-	firefoxMimetypes  = []string{"text/_moz_htmlcontext"}
-	chromiumMimetypes = []string{"chromium/x-source-url"}
-)
+func handleChangeImage() {
+	cmd := exec.Command("wl-paste", "--type", "image", "--watch", "echo", "")
 
-func update() {
-	cmd := exec.Command("wl-paste", "-n")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		slog.Error(Name, "load", err)
+		os.Exit(1)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		slog.Error(Name, "load", err)
+		os.Exit(1)
+	} else {
+		go func() {
+			cmd.Wait()
+		}()
+	}
+
+	scanner := bufio.NewScanner(stdout)
+
+	for scanner.Scan() {
+		updateImage()
+	}
+}
+
+var ignoreMimetypes = []string{"x-kde-passwordManagerHint", "text/uri-list"}
+
+func updateImage() {
+	cmd := exec.Command("wl-paste", "-t", "image", "-n")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("clipboard", "error", err)
+
+		return
+	}
+
+	md5 := md5.Sum(out)
+	md5str := hex.EncodeToString(md5[:])
+
+	if file := saveImg(out, "raw"); file != "" {
+		clipboardhistory[md5str] = &Item{
+			Img:   file,
+			Time:  time.Now(),
+			State: StateEditable,
+		}
+	}
+
+	saveToFile()
+}
+
+func updateText() {
+	cmd := exec.Command("wl-paste", "-t", "text", "-n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "Nothing is copied") {
@@ -188,48 +238,8 @@ func update() {
 
 	mt := getMimetypes()
 
-	if len(mt) == 0 {
-		return
-	}
-
-	mimetype := mt[0]
-
-	isImg := false
-	isFF, isChrome := false, false
-
 	for _, v := range mt {
 		if slices.Contains(ignoreMimetypes, v) {
-			return
-		}
-
-		if slices.Contains(firefoxMimetypes, v) {
-			isFF = true
-		}
-
-		if slices.Contains(chromiumMimetypes, v) {
-			isChrome = true
-		}
-
-		if _, ok := imgTypes[v]; ok {
-			isImg = true
-		}
-	}
-
-	if (isFF || isChrome) && isImg {
-		url := strings.ReplaceAll(strings.Fields(string(out))[0], "\x00", "")
-
-		if isFF {
-			html, err := html.Parse(bytes.NewReader(out))
-			if err != nil {
-				panic(err)
-			}
-
-			url = getImgSrc(html)
-		}
-
-		out, mimetype = downloadImage(url)
-
-		if mimetype == "" || len(out) == 0 {
 			return
 		}
 	}
@@ -242,36 +252,14 @@ func update() {
 		return
 	}
 
-	if !isImg && !utf8.Valid(out) {
+	if !utf8.Valid(out) {
 		slog.Error(Name, "updating", "string content contains invalid UTF-8")
 	}
 
-	if !isImg {
-		clipboardhistory[md5str] = &Item{
-			Content: string(out),
-			Time:    time.Now(),
-			State:   StateEditable,
-		}
-	} else {
-		if val, ok := imgTypes[mimetype]; ok {
-			if file := saveImg(out, val); file != "" {
-				clipboardhistory[md5str] = &Item{
-					Img:      file,
-					Mimetype: mimetype,
-					Time:     time.Now(),
-					State:    StateEditable,
-				}
-			}
-		} else {
-			return
-		}
-	}
-
-	if len(clipboardhistory) > config.MaxItems {
-		trim()
-		saveToFile()
-
-		return
+	clipboardhistory[md5str] = &Item{
+		Content: string(out),
+		Time:    time.Now(),
+		State:   StateEditable,
 	}
 
 	saveToFile()
