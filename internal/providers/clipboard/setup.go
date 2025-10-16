@@ -59,6 +59,7 @@ type Config struct {
 	ImageEditorCmd string `koanf:"image_editor_cmd" desc:"editor to use for images. use '%FILE%' as placeholder for file path." default:""`
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
+	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
 }
 
 func Setup() {
@@ -73,6 +74,7 @@ func Setup() {
 		ImageEditorCmd: "",
 		TextEditorCmd:  "",
 		Command:        "wl-copy",
+		Recopy:         true,
 	}
 
 	common.LoadConfig(Name, config)
@@ -199,6 +201,24 @@ func handleChangeImage() {
 
 var ignoreMimetypes = []string{"x-kde-passwordManagerHint", "text/uri-list"}
 
+func recopy(b []byte) {
+	if !config.Recopy {
+		return
+	}
+
+	cmd := exec.Command("wl-copy")
+	cmd.Stdin = bytes.NewReader(b)
+
+	err := cmd.Start()
+	if err != nil {
+		slog.Error(Name, "recopy", err)
+	} else {
+		go func() {
+			cmd.Wait()
+		}()
+	}
+}
+
 func updateImage() {
 	cmd := exec.Command("wl-paste", "-t", "image", "-n")
 
@@ -219,6 +239,8 @@ func updateImage() {
 			State: StateEditable,
 		}
 	}
+
+	recopy(out)
 
 	saveToFile()
 }
@@ -261,6 +283,8 @@ func updateText() {
 		Time:    time.Now(),
 		State:   StateEditable,
 	}
+
+	recopy(out)
 
 	saveToFile()
 }
