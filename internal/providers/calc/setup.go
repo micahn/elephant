@@ -217,8 +217,8 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 		if config.Async {
 			go func() {
 				cmd := exec.Command("qalc", "-t", query)
-				out, err := cmd.CombinedOutput()
 
+				out, err := cmd.Output()
 				if err == nil {
 					e.Text = strings.TrimSpace(string(out))
 				} else {
@@ -230,8 +230,8 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 			}()
 		} else {
 			cmd := exec.Command("qalc", "-t", query)
-			out, err := cmd.CombinedOutput()
 
+			out, err := cmd.Output()
 			if err == nil {
 				e.Text = strings.TrimSpace(string(out))
 			}
