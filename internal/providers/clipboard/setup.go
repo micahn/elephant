@@ -241,8 +241,6 @@ func updateImage() {
 		out = buf.Bytes()
 	}
 
-	recopy(out)
-
 	md5 := md5.Sum(out)
 	md5str := hex.EncodeToString(md5[:])
 
@@ -258,6 +256,8 @@ func updateImage() {
 			State: StateEditable,
 		}
 	}
+
+	recopy(out)
 
 	saveToFile()
 }
