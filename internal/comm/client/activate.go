@@ -15,10 +15,11 @@ func Activate(data string) {
 	v := strings.Split(data, ";")
 
 	req := pb.ActivateRequest{
-		Provider:   v[1],
-		Identifier: v[2],
-		Action:     v[3],
-		Query:      v[4],
+		Provider:   v[0],
+		Identifier: v[1],
+		Action:     v[2],
+		Query:      v[3],
+		Arguments:  v[4],
 	}
 
 	b, err := proto.Marshal(&req)

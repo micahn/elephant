@@ -140,8 +140,8 @@ elephant query "files;documents;10;false"
 #### Activating Items
 
 ```bash
-# activate item (qid;provider;identifier;action;query)
-elephant activate "1;files;<identifier>;open;"
+# activate item (provider;identifier;action;query;arguments)
+elephant activate "files;<identifier>;open;;"
 ```
 
 #### Other Commands
