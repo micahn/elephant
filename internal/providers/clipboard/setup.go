@@ -229,15 +229,22 @@ func updateImage() {
 		return
 	}
 
-	md5 := md5.Sum(out)
-	md5str := hex.EncodeToString(md5[:])
-
 	mt := getMimetypes()
 
-	// ignore gimp for now
+	// special treatment for gimp
 	if slices.Contains(mt, "image/x-xcf") {
-		return
+		buf := bytes.NewBuffer([]byte{})
+		cmd := exec.Command("wl-paste", "-t", "image/png")
+		cmd.Stdout = buf
+
+		cmd.Run()
+		out = buf.Bytes()
 	}
+
+	recopy(out)
+
+	md5 := md5.Sum(out)
+	md5str := hex.EncodeToString(md5[:])
 
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
@@ -251,8 +258,6 @@ func updateImage() {
 			State: StateEditable,
 		}
 	}
-
-	recopy(out)
 
 	saveToFile()
 }
