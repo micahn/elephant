@@ -187,6 +187,10 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 			var actions []string
 
+			if v.Parent != "" {
+				actions = append(actions, ActionGoParent)
+			}
+
 			for k := range me.Actions {
 				actions = append(actions, k)
 			}
