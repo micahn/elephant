@@ -109,7 +109,7 @@ func LoadMenus() {
 
 				for k, v := range m.Entries {
 					m.Entries[k].Menu = m.Name
-					m.Entries[k].Identifier = v.CreateIdentifier()
+					m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
 
 					if v.SubMenu != "" {
 						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)

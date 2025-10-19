@@ -199,7 +199,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 				actions = append(actions, ActionOpen)
 			}
 
-			if len(actions) == 0 {
+			if len(actions) == 0 || (len(actions) == 1 && actions[0] == ActionGoParent) {
 				actions = append(actions, ActionDefault)
 			}
 
