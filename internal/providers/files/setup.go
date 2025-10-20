@@ -48,7 +48,7 @@ func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "folder",
-			MinScore: 50,
+			MinScore: 20,
 		},
 		LaunchPrefix: "",
 	}

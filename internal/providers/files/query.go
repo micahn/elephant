@@ -22,7 +22,8 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			v := val.(*file)
 
 			score, positions, s := common.FuzzyScore(query, v.path, exact)
-			if score > 0 {
+
+			if score > config.MinScore {
 				entries = append(entries, &pb.QueryResponse_Item{
 					Identifier: k,
 					Text:       v.path,
