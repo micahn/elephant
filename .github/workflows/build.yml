@@ -31,7 +31,7 @@ jobs:
     - name: Install cross-compilation tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
+        sudo apt-get install -y gcc-aarch64-linux-gnu libwayland-dev
 
     - name: Create build directory
       run: mkdir -p build
@@ -179,10 +179,10 @@ jobs:
         echo "Building bluetooth plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/bluetooth-linux-arm64.so ./internal/providers/bluetooth
 
-    - name: Build windows plugin for linux/arm64
+    - name: Build windows plugin for linux/amd64
       run: |
-        echo "Building windows plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/windows-linux-arm64.so ./internal/providers/windows
+        echo "Building windows plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/windows-linux-amd64.so ./internal/providers/windows
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -274,7 +274,6 @@ jobs:
 
         # Archive windows plugin
         tar -czf windows-linux-amd64.tar.gz windows-linux-amd64.so
-        tar -czf windows-linux-arm64.tar.gz windows-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"

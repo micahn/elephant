@@ -69,6 +69,9 @@ Elephant acts as a unified backend service that aggregates data from various sou
 - **Unicodes**
   - find unicode symbols
 
+- **Windows**
+  - find and focus windows
+
 ## Installation
 
 ### Installing on Arch
