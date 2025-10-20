@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/comm/handlers"
-	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/adrg/xdg"
 	"github.com/charlievieth/fastwalk"
 	"github.com/fsnotify/fsnotify"
@@ -71,12 +70,6 @@ func setVars() {
 	getLocale()
 
 	dirs = xdg.ApplicationDirs
-
-	home, _ := os.UserHomeDir()
-	path := filepath.Join(home, "Desktop")
-	if common.FileExists(path) {
-		dirs = append([]string{path}, dirs...)
-	}
 }
 
 func walkFunction(path string, d fs.DirEntry, err error) error {
