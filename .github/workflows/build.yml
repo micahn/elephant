@@ -179,6 +179,11 @@ jobs:
         echo "Building bluetooth plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/bluetooth-linux-arm64.so ./internal/providers/bluetooth
 
+    - name: Build windows plugin for linux/arm64
+      run: |
+        echo "Building windows plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/windows-linux-arm64.so ./internal/providers/windows
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -266,6 +271,10 @@ jobs:
         # Archive bluetooth plugin
         tar -czf bluetooth-linux-amd64.tar.gz bluetooth-linux-amd64.so
         tar -czf bluetooth-linux-arm64.tar.gz bluetooth-linux-arm64.so
+
+        # Archive windows plugin
+        tar -czf windows-linux-amd64.tar.gz windows-linux-amd64.so
+        tar -czf windows-linux-arm64.tar.gz windows-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"
