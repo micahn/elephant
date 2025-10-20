@@ -308,7 +308,11 @@ func updateImage() {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error("clipboard", "error", err)
+		if strings.Contains(string(out), "Nothing is copied") {
+			return
+		}
+
+		slog.Error(Name, "error", err)
 
 		return
 	}
