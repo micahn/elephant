@@ -33,6 +33,7 @@ var readme string
 
 type Config struct {
 	common.Config `koanf:",squash"`
+	Delay         int `koanf:"delay" desc:"delay in ms before focusing to avoid potential focus issues" default:"100"`
 }
 
 var config *Config
@@ -119,6 +120,7 @@ func Setup() {
 			Icon:     "view-restore",
 			MinScore: 20,
 		},
+		Delay: 100,
 	}
 
 	common.LoadConfig(Name, config)
@@ -137,6 +139,8 @@ const (
 )
 
 func Activate(identifier, action string, query string, args string) {
+	time.Sleep(time.Duration(config.Delay) * time.Millisecond)
+
 	i, _ := strconv.Atoi(identifier)
 
 	err := focusWindow(i)
