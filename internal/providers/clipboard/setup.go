@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"io/fs"
@@ -19,6 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +46,12 @@ var (
 //go:embed README.md
 var readme string
 
+//go:embed data/UnicodeData.txt
+var unicodedata string
+
+//go:embed data/symbols.xml
+var symbolsdata string
+
 const StateEditable = "editable"
 
 type Item struct {
@@ -60,6 +68,7 @@ type Config struct {
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
 	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
+	IgnoreSymbols  bool   `koanf:"ignore_symbols" desc:"ignores symbols/unicode" default:"true"`
 }
 
 func Setup() {
@@ -75,6 +84,7 @@ func Setup() {
 		TextEditorCmd:  "",
 		Command:        "wl-copy",
 		Recopy:         true,
+		IgnoreSymbols:  true,
 	}
 
 	common.LoadConfig(Name, config)
@@ -89,7 +99,81 @@ func Setup() {
 	go handleChangeImage()
 	go handleChangeText()
 
+	if config.IgnoreSymbols {
+		setupUnicodeSymbols()
+	}
+
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
+}
+
+var symbols = make(map[string]struct{})
+
+type LDML struct {
+	XMLName     xml.Name    `xml:"ldml"`
+	Identity    Identity    `xml:"identity"`
+	Annotations Annotations `xml:"annotations"`
+}
+
+type Identity struct {
+	Version  Version  `xml:"version"`
+	Language Language `xml:"language"`
+}
+
+type Version struct {
+	Number string `xml:"number,attr"`
+}
+
+type Language struct {
+	Type string `xml:"type,attr"`
+}
+
+type Annotations struct {
+	Annotation []Annotation `xml:"annotation"`
+}
+
+type Annotation struct {
+	CP   string `xml:"cp,attr"`
+	Type string `xml:"type,attr,omitempty"`
+	Text string `xml:",chardata"`
+}
+
+type Symbol struct {
+	CP         string
+	Searchable []string
+}
+
+func setupUnicodeSymbols() {
+	// unicode
+	for v := range strings.Lines(unicodedata) {
+		if v == "" {
+			continue
+		}
+
+		fields := strings.SplitN(v, ";", 3)
+
+		codePoint, err := strconv.ParseInt(fields[0], 16, 32)
+		if err != nil {
+			slog.Error(Name, "activate parse unicode", err)
+			return
+		}
+
+		toUse := string(rune(codePoint))
+		symbols[toUse] = struct{}{}
+	}
+
+	// symbols
+	var ldml LDML
+
+	err := xml.Unmarshal([]byte(symbolsdata), &ldml)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, v := range ldml.Annotations.Annotation {
+		if _, ok := symbols[v.CP]; !ok {
+			symbols[v.CP] = struct{}{}
+		}
+	}
 }
 
 func loadFromFile() {
@@ -277,6 +361,12 @@ func updateText() {
 
 	if strings.TrimSpace(string(out)) == "" {
 		return
+	}
+
+	if config.IgnoreSymbols {
+		if _, ok := symbols[string(out)]; ok {
+			return
+		}
 	}
 
 	mt := getMimetypes()

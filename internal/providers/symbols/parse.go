@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/md5"
 	"embed"
-	_ "embed"
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
