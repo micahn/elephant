@@ -392,9 +392,11 @@ func updateText() {
 	}
 
 	if config.IgnoreSymbols {
+		mu.Lock()
 		if _, ok := symbols[string(out)]; ok {
 			return
 		}
+		mu.Unlock()
 	}
 
 	mt := getMimetypes()
