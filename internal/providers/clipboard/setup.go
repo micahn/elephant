@@ -69,6 +69,7 @@ type Config struct {
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
 	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
 	IgnoreSymbols  bool   `koanf:"ignore_symbols" desc:"ignores symbols/unicode" default:"true"`
+	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries every X minutes" default:"0"`
 }
 
 func Setup() {
@@ -85,6 +86,7 @@ func Setup() {
 		Command:        "wl-copy",
 		Recopy:         true,
 		IgnoreSymbols:  true,
+		AutoCleanup:    0,
 	}
 
 	common.LoadConfig(Name, config)
@@ -103,7 +105,29 @@ func Setup() {
 		setupUnicodeSymbols()
 	}
 
+	if config.AutoCleanup != 0 {
+		go cleanup()
+	}
+
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
+}
+
+func cleanup() {
+	for {
+		time.Sleep(time.Duration(config.AutoCleanup) * time.Minute)
+
+		i := 0
+
+		for k := range clipboardhistory {
+			delete(clipboardhistory, k)
+			i++
+		}
+
+		if i != 0 {
+			saveToFile()
+			slog.Info(Name, "cleanup", i)
+		}
+	}
 }
 
 var symbols = make(map[string]struct{})
