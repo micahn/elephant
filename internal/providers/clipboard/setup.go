@@ -182,7 +182,9 @@ func setupUnicodeSymbols() {
 		}
 
 		toUse := string(rune(codePoint))
+		mu.Lock()
 		symbols[toUse] = struct{}{}
+		mu.Unlock()
 	}
 
 	// symbols
@@ -194,9 +196,11 @@ func setupUnicodeSymbols() {
 	}
 
 	for _, v := range ldml.Annotations.Annotation {
+		mu.Lock()
 		if _, ok := symbols[v.CP]; !ok {
 			symbols[v.CP] = struct{}{}
 		}
+		mu.Unlock()
 	}
 }
 

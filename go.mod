@@ -17,7 +17,12 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/tinylib/msgp v1.4.0 // indirect
+	go.etcd.io/bbolt v1.4.3 // indirect
+	golang.org/x/mod v0.18.0 // indirect
+	golang.org/x/tools v0.22.0 // indirect
 )
 
 require (

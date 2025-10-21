@@ -19,8 +19,14 @@ const (
 )
 
 func Activate(identifier, action string, query string, args string) {
-	f, _ := paths.Load(identifier)
-	path := f.(*file).path
+	f := getFile(identifier)
+
+	if f == nil {
+		slog.Error(Name, "activate", "file not found")
+		return
+	}
+
+	path := f.Path
 
 	if action == "" {
 		action = ActionOpen

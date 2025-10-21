@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/util"
@@ -21,16 +20,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-var paths sync.Map
-
 //go:embed README.md
 var readme string
-
-type file struct {
-	identifier string
-	path       string
-	changed    time.Time
-}
 
 var (
 	Name       = "files"
@@ -46,6 +37,12 @@ type Config struct {
 
 func Setup() {
 	start := time.Now()
+
+	err := openDB()
+	if err != nil {
+		slog.Error(Name, "setup", err)
+		return
+	}
 
 	config = &Config{
 		Config: common.Config{
@@ -89,18 +86,9 @@ func Setup() {
 					slices.Sort(toDelete)
 					toDelete = slices.Compact(toDelete)
 
-					paths.Range(func(key, val any) bool {
-						k := key.(string)
-						v := val.(*file)
-
-						for _, path := range toDelete {
-							if strings.HasPrefix(v.path, path) {
-								paths.Delete(k)
-							}
-						}
-
-						return true
-					})
+					for _, path := range toDelete {
+						deleteFileByPath(path)
+					}
 
 					toDelete = []string{}
 					do = false
@@ -134,14 +122,14 @@ func Setup() {
 						md5 := md5.Sum([]byte(path))
 						md5str := hex.EncodeToString(md5[:])
 
-						if val, ok := paths.Load(md5str); ok {
-							v := val.(*file)
-							v.changed = info.ChangeTime()
+						if val := getFile(md5str); val != nil {
+							val.Changed = info.ChangeTime()
+							putFile(*val)
 						} else {
-							paths.Store(md5str, &file{
-								identifier: md5str,
-								path:       path,
-								changed:    info.ChangeTime(),
+							putFile(File{
+								Identifier: md5str,
+								Path:       path,
+								Changed:    info.ChangeTime(),
 							})
 						}
 					}
@@ -153,6 +141,8 @@ func Setup() {
 			}
 		}
 	}()
+
+	toPut := []File{}
 
 outer:
 	for v := range bytes.Lines(out) {
@@ -175,21 +165,23 @@ outer:
 				md5 := md5.Sum([]byte(path))
 				md5str := hex.EncodeToString(md5[:])
 
-				f := file{
-					identifier: md5str,
-					path:       path,
-					changed:    time.Time{},
+				f := File{
+					Identifier: md5str,
+					Path:       path,
+					Changed:    time.Time{},
 				}
 
 				res := 3600 - diff.Seconds()
 				if res > 0 {
-					f.changed = info.ChangeTime()
+					f.Changed = info.ChangeTime()
 				}
 
-				paths.Store(md5str, &f)
+				toPut = append(toPut, f)
 			}
 		}
 	}
+
+	putFileBatch(toPut)
 
 	slog.Info(Name, "time", time.Since(start))
 }
