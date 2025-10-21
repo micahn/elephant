@@ -110,9 +110,23 @@ func focusWindow(windowID int) error {
 func Setup() {
 	start := time.Now()
 
-	if err := initWindowManager(); err != nil {
-		slog.Error(Name, "init", err)
-		return
+	isInit := false
+	count := 0
+
+	for !isInit {
+		if count > 10 {
+			slog.Error(Name, "setup", "couldn't init window manager")
+			return
+		}
+
+		if err := initWindowManager(); err != nil {
+			slog.Error(Name, "init", err)
+			slog.Info(Name, "setup", "retrying initWindowManager")
+			count++
+			time.Sleep(1 * time.Second)
+		} else {
+			isInit = true
+		}
 	}
 
 	config = &Config{
