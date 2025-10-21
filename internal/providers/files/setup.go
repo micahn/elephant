@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +58,6 @@ func Setup() {
 
 	home, _ := os.UserHomeDir()
 	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
-	// cmd.Args = append(cmd.Args, "--hidden")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -70,31 +70,38 @@ func Setup() {
 		log.Fatal(err)
 	}
 
-	deleteChan := make(chan struct{})
+	deleteChan := make(chan string)
 
 	go func() {
 		timer := time.NewTimer(time.Second * 5)
 		do := false
+		toDelete := []string{}
 
 		for {
 			select {
-			case <-deleteChan:
+			case path := <-deleteChan:
 				timer.Reset(time.Second * 2)
+				toDelete = append(toDelete, path)
 				do = true
 			case <-timer.C:
 				if do {
-					// this is ghetto, but paths aren't suffixed with `/`, so we can't just check for a path-prefix
+					slices.Sort(toDelete)
+					toDelete = slices.Compact(toDelete)
+
 					paths.Range(func(key, val any) bool {
 						k := key.(string)
 						v := val.(*file)
 
-						if _, err := os.Stat(v.path); err != nil {
-							paths.Delete(k)
+						for _, path := range toDelete {
+							if strings.HasPrefix(v.path, path) {
+								paths.Delete(k)
+							}
 						}
 
 						return true
 					})
 
+					toDelete = []string{}
 					do = false
 				}
 			}
@@ -110,7 +117,7 @@ func Setup() {
 				}
 
 				if event.Op == fsnotify.Remove || event.Op == fsnotify.Rename {
-					deleteChan <- struct{}{}
+					deleteChan <- event.Name
 				}
 
 				if info, err := times.Stat(event.Name); err == nil {
