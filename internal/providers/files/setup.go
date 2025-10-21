@@ -40,7 +40,8 @@ var (
 
 type Config struct {
 	common.Config `koanf:",squash"`
-	LaunchPrefix  string `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
+	LaunchPrefix  string   `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
+	IgnoredDirs   []string `koanf:"ignored_dirs" desc:"ignore these directories" default:""`
 }
 
 func Setup() {
@@ -153,9 +154,16 @@ func Setup() {
 		}
 	}()
 
+outer:
 	for v := range bytes.Lines(out) {
 		if len(v) > 0 {
 			path := strings.TrimSpace(string(v))
+
+			for _, v := range config.IgnoredDirs {
+				if strings.HasPrefix(path, v) {
+					continue outer
+				}
+			}
 
 			if strings.HasSuffix(path, "/") {
 				watcher.Add(path)
