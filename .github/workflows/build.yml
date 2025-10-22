@@ -184,6 +184,16 @@ jobs:
         echo "Building windows plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/windows-linux-amd64.so ./internal/providers/windows
 
+    - name: Build snippets plugin for linux/amd64
+      run: |
+        echo "Building snippets plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/snippets-linux-amd64.so ./internal/providers/snippets
+
+    - name: Build snippets plugin for linux/arm64
+      run: |
+        echo "Building snippets plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/snippets-linux-arm64.so ./internal/providers/snippets
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -274,6 +284,10 @@ jobs:
 
         # Archive windows plugin
         tar -czf windows-linux-amd64.tar.gz windows-linux-amd64.so
+
+        # Archive snippets plugin
+        tar -czf snippets-linux-amd64.tar.gz snippets-linux-amd64.so
+        tar -czf snippets-linux-arm64.tar.gz snippets-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"
