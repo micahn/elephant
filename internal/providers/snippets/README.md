@@ -9,7 +9,7 @@ Create and access text snippets.
 
 #### Requirements
 
-- `wlrctl`
+- `wtype`
 
 #### Example snippets
 

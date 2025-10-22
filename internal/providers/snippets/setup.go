@@ -31,7 +31,7 @@ const (
 
 type Config struct {
 	common.Config `koanf:",squash"`
-	Command       string    `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wlrctl keyboard type \"%CONTENT%\""`
+	Command       string    `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wtype %CONTENT%"`
 	Snippets      []Snippet `koanf:"snippets" desc:"avaiable snippets" default:""`
 	Delay         int       `koanf:"delay" desc:"delay in ms before executing command to avoid potential focus issues" default:"100"`
 }
@@ -48,7 +48,7 @@ func Setup() {
 			Icon:     "insert-text",
 			MinScore: 50,
 		},
-		Command: "wlrctl keyboard type \"%CONTENT%\"",
+		Command: "wtype %CONTENT%",
 		Delay:   100,
 	}
 
