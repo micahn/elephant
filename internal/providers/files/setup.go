@@ -27,6 +27,7 @@ var (
 	Name       = "files"
 	NamePretty = "Files"
 	config     *Config
+	watcher    *fsnotify.Watcher
 )
 
 type Config struct {
@@ -63,77 +64,31 @@ func Setup() {
 		os.Exit(1)
 	}
 
-	watcher, err := fsnotify.NewWatcher()
+	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	deleteChan := make(chan string)
+	regularChan := make(chan string)
 
-	go func() {
-		timer := time.NewTimer(time.Second * 5)
-		do := false
-		toDelete := []string{}
-
-		for {
-			select {
-			case path := <-deleteChan:
-				timer.Reset(time.Second * 2)
-				toDelete = append(toDelete, path)
-				do = true
-			case <-timer.C:
-				if do {
-					slices.Sort(toDelete)
-					toDelete = slices.Compact(toDelete)
-
-					for _, path := range toDelete {
-						deleteFileByPath(path)
-					}
-
-					toDelete = []string{}
-					do = false
-				}
-			}
-		}
-	}()
+	go handleDelete(deleteChan)
+	go handleRegular(regularChan)
 
 	go func() {
 		for {
 			select {
 			case event, ok := <-watcher.Events:
 				if !ok {
-					return
+					continue
 				}
 
 				if event.Op == fsnotify.Remove || event.Op == fsnotify.Rename {
 					deleteChan <- event.Name
+					continue
 				}
 
-				if info, err := times.Stat(event.Name); err == nil {
-					fileInfo, err := os.Stat(event.Name)
-					if err == nil {
-						path := event.Name
-
-						if fileInfo.IsDir() {
-							path = path + "/"
-							watcher.Add(path)
-						}
-
-						md5 := md5.Sum([]byte(path))
-						md5str := hex.EncodeToString(md5[:])
-
-						if val := getFile(md5str); val != nil {
-							val.Changed = info.ChangeTime()
-							putFile(*val)
-						} else {
-							putFile(File{
-								Identifier: md5str,
-								Path:       path,
-								Changed:    info.ChangeTime(),
-							})
-						}
-					}
-				}
+				regularChan <- event.Name
 			case _, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -184,6 +139,82 @@ outer:
 	putFileBatch(toPut)
 
 	slog.Info(Name, "time", time.Since(start))
+}
+
+func handleDelete(deleteChan chan string) {
+	timer := time.NewTimer(time.Second * 2)
+	do := false
+	toDelete := []string{}
+
+	for {
+		select {
+		case path := <-deleteChan:
+			timer.Reset(time.Second * 2)
+			toDelete = append(toDelete, path)
+			do = true
+		case <-timer.C:
+			if do {
+				slices.Sort(toDelete)
+				toDelete = slices.Compact(toDelete)
+
+				for _, path := range toDelete {
+					deleteFileByPath(path)
+				}
+
+				toDelete = []string{}
+				do = false
+			}
+		}
+	}
+}
+
+func handleRegular(regularChan chan string) {
+	timer := time.NewTimer(time.Second * 2)
+	do := false
+	data := []string{}
+
+	for {
+		select {
+		case path := <-regularChan:
+			timer.Reset(time.Second * 2)
+			data = append(data, path)
+			do = true
+		case <-timer.C:
+			if do {
+				slices.Sort(data)
+				data = slices.Compact(data)
+
+				for _, path := range data {
+					if info, err := times.Stat(path); err == nil {
+						fileInfo, err := os.Stat(path)
+						if err == nil {
+							if fileInfo.IsDir() {
+								path = path + "/"
+								watcher.Add(path)
+							}
+
+							md5 := md5.Sum([]byte(path))
+							md5str := hex.EncodeToString(md5[:])
+
+							if val := getFile(md5str); val != nil {
+								val.Changed = info.ChangeTime()
+								putFile(*val)
+							} else {
+								putFile(File{
+									Identifier: md5str,
+									Path:       path,
+									Changed:    info.ChangeTime(),
+								})
+							}
+						}
+					}
+				}
+
+				data = []string{}
+				do = false
+			}
+		}
+	}
 }
 
 func PrintDoc() {
