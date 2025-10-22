@@ -72,6 +72,9 @@ Elephant acts as a unified backend service that aggregates data from various sou
 - **Windows**
   - find and focus windows
 
+- **Snippets**
+  - find and paste text snippets
+
 ## Installation
 
 ### Installing on Arch
