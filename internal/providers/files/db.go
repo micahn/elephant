@@ -85,7 +85,6 @@ func getFile(identifier string) *File {
 		return err
 	})
 	if err != nil {
-		slog.Error(Name, "delete", err)
 		return nil
 	}
 
