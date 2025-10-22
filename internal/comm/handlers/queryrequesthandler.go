@@ -209,5 +209,5 @@ func sortEntries(a *pb.QueryResponse_Item, b *pb.QueryResponse_Item) int {
 		return 1
 	}
 
-	return strings.Compare(a.Text, b.Text)
+	return strings.Compare(strings.ToLower(a.Text), strings.ToLower(b.Text))
 }
