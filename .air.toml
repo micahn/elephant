@@ -21,6 +21,7 @@ pre_cmd = [
   "cd internal/providers/bluetooth && go build -buildmode=plugin && cp bluetooth.so /home/andrej/.config/elephant/providers/",
   "cd internal/providers/windows && go build -buildmode=plugin && cp windows.so /home/andrej/.config/elephant/providers/",
   "cd internal/providers/snippets && go build -buildmode=plugin && cp snippets.so /home/andrej/.config/elephant/providers/",
+  "cd internal/providers/nirisessions && go build -buildmode=plugin && cp nirisessions.so /home/andrej/.config/elephant/providers/",
 ]
 # Binary file yields from `cmd`.
 bin = "/tmp/elephant-air"

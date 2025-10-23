@@ -194,6 +194,16 @@ jobs:
         echo "Building snippets plugin for linux/arm64..."
         GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/snippets-linux-arm64.so ./internal/providers/snippets
 
+    - name: Build nirisessions plugin for linux/amd64
+      run: |
+        echo "Building nirisessions plugin for linux/amd64..."
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/nirisessions-linux-amd64.so ./internal/providers/nirisessions
+
+    - name: Build nirisessions plugin for linux/arm64
+      run: |
+        echo "Building nirisessions plugin for linux/arm64..."
+        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/nirisessions-linux-arm64.so ./internal/providers/nirisessions
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -288,6 +298,10 @@ jobs:
         # Archive snippets plugin
         tar -czf snippets-linux-amd64.tar.gz snippets-linux-amd64.so
         tar -czf snippets-linux-arm64.tar.gz snippets-linux-arm64.so
+
+        # Archive nirisessions plugin
+        tar -czf nirisessions-linux-amd64.tar.gz nirisessions-linux-amd64.so
+        tar -czf nirisessions-linux-arm64.tar.gz nirisessions-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"
