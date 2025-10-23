@@ -32,10 +32,16 @@ var readme string
 
 type Config struct {
 	common.Config     `koanf:",squash"`
-	CreatePrefix      string `koanf:"create_prefix" desc:"prefix used in order to create a new item. will otherwise be based on matches (min_score)." default:""`
-	UrgentTimeFrame   int    `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
-	DuckPlayerVolumes bool   `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
+	CreatePrefix      string     `koanf:"create_prefix" desc:"prefix used in order to create a new item. will otherwise be based on matches (min_score)." default:""`
+	UrgentTimeFrame   int        `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
+	DuckPlayerVolumes bool       `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
+	Categories        []Category `koanf:"categories" desc:"categories" default:""`
 	Notification      `koanf:",squash"`
+}
+
+type Category struct {
+	Name   string `koanf:"name" desc:"name for category" default:""`
+	Prefix string `koanf:"prefix" desc:"prefix to store item in category" default:""`
 }
 
 type Notification struct {
@@ -52,12 +58,13 @@ const (
 )
 
 const (
-	ActionSave         = "save"
-	ActionDelete       = "delete"
-	ActionMarkDone     = "done"
-	ActionMarkActive   = "active"
-	ActionMarkInactive = "inactive"
-	ActionClear        = "clear"
+	ActionSave           = "save"
+	ActionChangeCategory = "change_category"
+	ActionDelete         = "delete"
+	ActionMarkDone       = "done"
+	ActionMarkActive     = "active"
+	ActionMarkInactive   = "inactive"
+	ActionClear          = "clear"
 )
 
 const (
@@ -70,6 +77,7 @@ type Item struct {
 	Scheduled time.Time
 	Started   time.Time
 	Finished  time.Time
+	Category  string
 	State     string
 	Urgency   string
 	Notified  bool
@@ -100,7 +108,17 @@ func saveItems() {
 func (i *Item) fromQuery(query string) {
 	query = strings.TrimSpace(strings.TrimPrefix(query, config.CreatePrefix))
 
+	category := ""
+
+	for _, v := range config.Categories {
+		if strings.HasPrefix(query, v.Prefix) {
+			category = v.Name
+			query = strings.TrimPrefix(query, v.Prefix)
+		}
+	}
+
 	i.Urgency = UrgencyNormal
+	i.Category = category
 
 	if strings.HasSuffix(query, "!") {
 		query = strings.TrimSuffix(query, "!")
@@ -174,6 +192,7 @@ func Setup() {
 	loadItems()
 
 	common.LoadConfig(Name, config)
+
 	go notify()
 }
 
@@ -253,6 +272,16 @@ func Activate(identifier, action string, query string, args string) {
 	i, _ := strconv.Atoi(identifier)
 
 	switch action {
+	case ActionChangeCategory:
+		var category Category
+
+		for _, v := range config.Categories {
+			if args == v.Prefix {
+				category = v
+			}
+		}
+
+		items[i].Category = category.Name
 	case ActionDelete:
 		items = append(items[:i], items[i+1:]...)
 	case ActionMarkActive:
@@ -320,7 +349,19 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 	var highestScore int32
 
+	var category Category
+
+	for _, v := range config.Categories {
+		if strings.HasPrefix(query, v.Prefix) {
+			category = v
+		}
+	}
+
 	for i, v := range items {
+		if category.Name != "" && v.Category != category.Name {
+			continue
+		}
+
 		e := &pb.QueryResponse_Item{}
 
 		if v.State == StateDone {
@@ -339,6 +380,8 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		case StateCreating:
 			actions = []string{ActionSave}
 		}
+
+		actions = append(actions, ActionChangeCategory)
 
 		e.Provider = Name
 		e.Identifier = fmt.Sprintf("%d", i)
@@ -390,27 +433,37 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 		e.State = append(e.State, v.Urgency)
 
-		entries = append(entries, e)
-	}
-
-	if (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
-		i := Item{}
-		i.fromQuery(query)
-
-		e := &pb.QueryResponse_Item{}
-		e.Score = 3_000_000
-		e.Provider = Name
-		e.Identifier = fmt.Sprintf("CREATE:%s", query)
-		e.Icon = "list-add"
-		e.Text = i.Text
-		e.Actions = []string{ActionSave}
-		e.State = []string{StateCreating}
-
-		if !i.Scheduled.IsZero() {
-			e.Subtext = i.Scheduled.Format(time.TimeOnly)
+		if v.Category != "" {
+			if e.Subtext != "" {
+				e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, v.Category)
+			} else {
+				e.Subtext = v.Category
+			}
 		}
 
 		entries = append(entries, e)
+	}
+
+	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
+		if (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
+			i := Item{}
+			i.fromQuery(query)
+
+			e := &pb.QueryResponse_Item{}
+			e.Score = 3_000_000
+			e.Provider = Name
+			e.Identifier = fmt.Sprintf("CREATE:%s", query)
+			e.Icon = "list-add"
+			e.Text = i.Text
+			e.Actions = []string{ActionSave}
+			e.State = []string{StateCreating}
+
+			if !i.Scheduled.IsZero() {
+				e.Subtext = i.Scheduled.Format(time.TimeOnly)
+			}
+
+			entries = append(entries, e)
+		}
 	}
 
 	return entries
