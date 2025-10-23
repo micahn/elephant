@@ -75,6 +75,9 @@ Elephant acts as a unified backend service that aggregates data from various sou
 - **Snippets**
   - find and paste text snippets
 
+- **Niri Sessions**
+  - define sets of apps to open and run them
+
 ## Installation
 
 ### Installing on Arch
