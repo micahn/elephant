@@ -8,6 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "embed"
@@ -46,8 +47,9 @@ type Workspace struct {
 }
 
 type Window struct {
-	Command string `koanf:"command" desc:"command to run" default:""`
-	AppID   string `koanf:"app_id" desc:"app_id to identify the window" default:""`
+	Command string   `koanf:"command" desc:"command to run" default:""`
+	AppID   string   `koanf:"app_id" desc:"app_id to identify the window" default:""`
+	After   []string `koanf:"after" desc:"commands to run after the window has been spawned" default:""`
 }
 
 func Setup() {
@@ -70,6 +72,7 @@ func PrintDoc() {
 type OpenedOrChangedEvent struct {
 	WindowOpenedOrChanged *struct {
 		Window struct {
+			ID     int    `json:"id"`
 			AppID  string `json:"app_id"`
 			Layout struct {
 				PosInScrollingLayout []int `json:"pos_in_scrolling_layout"`
@@ -78,7 +81,7 @@ type OpenedOrChangedEvent struct {
 	} `json:"WindowOpenedOrChanged,omitempty"`
 }
 
-func monitor(appid string, res chan struct{}) {
+func monitor(appid string, res chan int) {
 	cmd := exec.Command("niri", "msg", "-j", "event-stream")
 
 	stdout, err := cmd.StdoutPipe()
@@ -102,7 +105,7 @@ func monitor(appid string, res chan struct{}) {
 		}
 
 		if e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == appid && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
-			res <- struct{}{}
+			res <- e.WindowOpenedOrChanged.Window.ID
 			return
 		}
 	}
@@ -123,7 +126,7 @@ func Activate(identifier, action string, query string, args string) {
 
 	s := config.Sessions[i]
 
-	res := make(chan struct{})
+	res := make(chan int)
 
 	if action == ActionStartNew {
 		goWorkspaceDown()
@@ -143,7 +146,21 @@ func Activate(identifier, action string, query string, args string) {
 					cmd.Wait()
 				}()
 			}
-			<-res
+
+			id := <-res
+			idStr := strconv.Itoa(id)
+
+			for _, v := range w.After {
+				toRun := strings.ReplaceAll(v, "%ID%", idStr)
+
+				cmd := exec.Command("sh", "-c", toRun)
+
+				err := cmd.Run()
+				if err != nil {
+					slog.Error(Name, "activate after", err)
+					return
+				}
+			}
 		}
 
 		if k < len(s.Workspaces)-1 {
