@@ -74,55 +74,58 @@ func LoadMenus() {
 
 	for _, v := range ConfigDirs() {
 		path := filepath.Join(v, "menus")
-
 		MenuConfigLoaded.Paths = append(MenuConfigLoaded.Paths, path)
+	}
 
-		conf := fastwalk.Config{
-			Follow: true,
+	conf := fastwalk.Config{
+		Follow: true,
+	}
+
+	for _, root := range MenuConfigLoaded.Paths {
+		if _, err := os.Stat(root); err != nil {
+			continue
 		}
 
-		for _, root := range MenuConfigLoaded.Paths {
-			if _, err := os.Stat(root); err != nil {
-				continue
+		if err := fastwalk.Walk(&conf, root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
 
-			if err := fastwalk.Walk(&conf, root, func(path string, d fs.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-
-				if d.IsDir() {
-					return nil
-				}
-
-				m := Menu{}
-
-				b, err := os.ReadFile(path)
-				if err != nil {
-					slog.Error(menuname, "setup", err)
-				}
-
-				err = toml.Unmarshal(b, &m)
-				if err != nil {
-					slog.Error(menuname, "setup", err)
-				}
-
-				for k, v := range m.Entries {
-					m.Entries[k].Menu = m.Name
-					m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
-
-					if v.SubMenu != "" {
-						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
-					}
-				}
-
-				Menus[m.Name] = m
-
+			if d.IsDir() {
 				return nil
-			}); err != nil {
-				slog.Error(menuname, "walk", err)
-				os.Exit(1)
 			}
+
+			m := Menu{}
+
+			b, err := os.ReadFile(path)
+			if err != nil {
+				slog.Error(menuname, "setup", err)
+			}
+
+			err = toml.Unmarshal(b, &m)
+			if err != nil {
+				slog.Error(menuname, "setup", err)
+			}
+
+			for k, v := range m.Entries {
+				m.Entries[k].Menu = m.Name
+				m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
+
+				if v.SubMenu != "" {
+					m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
+				}
+			}
+
+			if m.Name == "other" {
+				fmt.Println(m.HideFromProviderlist, path)
+			}
+
+			Menus[m.Name] = m
+
+			return nil
+		}); err != nil {
+			slog.Error(menuname, "walk", err)
+			os.Exit(1)
 		}
 	}
 }
