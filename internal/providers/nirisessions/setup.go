@@ -56,7 +56,7 @@ type Window struct {
 func Setup() {
 	config = &Config{
 		Config: common.Config{
-			Icon:     "insert-text",
+			Icon:     "view-grid",
 			MinScore: 20,
 		},
 	}
