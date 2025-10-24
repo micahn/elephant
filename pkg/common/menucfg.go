@@ -19,7 +19,7 @@ type MenuConfig struct {
 }
 
 type Menu struct {
-	HideFromProviderlist bool     `koanf:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
+	HideFromProviderlist bool     `toml:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
 	Name                 string   `toml:"name" desc:"name of the menu"`
 	NamePretty           string   `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
 	Description          string   `toml:"description" desc:"used as a subtext"`
@@ -114,10 +114,6 @@ func LoadMenus() {
 				if v.SubMenu != "" {
 					m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
 				}
-			}
-
-			if m.Name == "other" {
-				fmt.Println(m.HideFromProviderlist, path)
 			}
 
 			Menus[m.Name] = m
