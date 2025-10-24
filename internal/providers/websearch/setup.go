@@ -124,7 +124,22 @@ func Activate(identifier, action string, query string, args string) {
 			args = query
 		}
 
-		run(query, identifier, strings.ReplaceAll(config.Engines[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(args))))
+		q := ""
+
+		if strings.Contains(config.Engines[i].URL, "%CLIPBOARD%") {
+			clipboard := common.ClipboardText()
+
+			if clipboard == "" {
+				slog.Error(Name, "activate", "empty clipbpoard")
+				return
+			}
+
+			q = strings.ReplaceAll(config.Engines[i].URL, "%CLIPBOARD%", url.QueryEscape(clipboard))
+		} else {
+			q = strings.ReplaceAll(config.Engines[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
+		}
+
+		run(query, identifier, q)
 	default:
 		q := ""
 
@@ -140,7 +155,18 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		}
 
-		q = strings.ReplaceAll(q, "%TERM%", url.QueryEscape(strings.TrimSpace(query)))
+		if strings.Contains(q, "%CLIPBOARD%") {
+			clipboard := common.ClipboardText()
+
+			if clipboard == "" {
+				slog.Error(Name, "activate", "empty clipbpoard")
+				return
+			}
+
+			q = strings.ReplaceAll(q, "%CLIPBOARD%", url.QueryEscape(clipboard))
+		} else {
+			q = strings.ReplaceAll(q, "%TERM%", url.QueryEscape(strings.TrimSpace(query)))
+		}
 
 		run(query, identifier, q)
 	}

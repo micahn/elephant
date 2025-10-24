@@ -116,10 +116,21 @@ func Activate(identifier, action string, query string, args string) {
 			val = args
 		}
 
-		if !strings.Contains(run, "%VALUE%") {
-			pipe = true
+		if strings.Contains(run, "%CLIPBOARD%") {
+			clipboard := common.ClipboardText()
+
+			if clipboard == "" {
+				slog.Error(Name, "activate", "empty clipboard")
+				return
+			}
+
+			run = strings.ReplaceAll(run, "%CLIPBOARD%", clipboard)
 		} else {
-			run = strings.ReplaceAll(run, "%VALUE%", val)
+			if !strings.Contains(run, "%VALUE%") {
+				pipe = true
+			} else {
+				run = strings.ReplaceAll(run, "%VALUE%", val)
+			}
 		}
 
 		if terminal {

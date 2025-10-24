@@ -1,6 +1,7 @@
 package common
 
 import (
+	"log/slog"
 	"os/exec"
 	"strings"
 )
@@ -14,4 +15,21 @@ func ReplaceResultOrStdinCmd(replace, result string) *exec.Cmd {
 	}
 
 	return exec.Command("sh", "-c", strings.ReplaceAll(replace, "%VALUE%", result))
+}
+
+func ClipboardText() string {
+	cmd := exec.Command("wl-paste", "-t", "text", "-n")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(out), "Nothing is copied") {
+			return ""
+		}
+
+		slog.Error("replaceresultorstdin", "get clipboard", err)
+
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
 }
