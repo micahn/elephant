@@ -405,6 +405,14 @@ func updateText() {
 
 	mt := getMimetypes()
 
+	if slices.Contains(mt, "text/_moz_htmlcontext") || slices.Contains(mt, "chromium/x-source-url") {
+		for k := range imgTypes {
+			if slices.Contains(mt, k) {
+				return
+			}
+		}
+	}
+
 	for _, v := range mt {
 		if slices.Contains(ignoreMimetypes, v) {
 			return
