@@ -78,7 +78,7 @@ func Setup() {
 		RequireNumber: true,
 		MinChars:      3,
 		Command:       "wl-copy",
-		Async:         true,
+		Async:         false,
 	}
 
 	common.LoadConfig(Name, config)
@@ -228,16 +228,18 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 
 				handlers.UpdateItem(query, conn, e)
 			}()
+
+			entries = append(entries, e)
 		} else {
 			cmd := exec.Command("qalc", "-t", query)
 
 			out, err := cmd.Output()
 			if err == nil {
 				e.Text = strings.TrimSpace(string(out))
+				entries = append(entries, e)
 			}
 		}
 
-		entries = append(entries, e)
 	}
 
 	if single {
