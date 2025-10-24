@@ -44,6 +44,7 @@ type Session struct {
 
 type Workspace struct {
 	Windows []Window `koanf:"windows" desc:"windows in this workspace group" default:""`
+	After   []string `koanf:"after" desc:"commands to run after the workspace has been processed" default:""`
 }
 
 type Window struct {
@@ -160,6 +161,16 @@ func Activate(identifier, action string, query string, args string) {
 					slog.Error(Name, "activate after", err)
 					return
 				}
+			}
+		}
+
+		for _, c := range v.After {
+			cmd := exec.Command("sh", "-c", c)
+
+			err := cmd.Run()
+			if err != nil {
+				slog.Error(Name, "activate after", err)
+				return
 			}
 		}
 
