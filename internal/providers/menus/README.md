@@ -142,6 +142,9 @@ value = "https://www.amazon.de/gp/video/storefront/"
 
 #### Lua Example
 
+**Important\***
+`lua = "luatest"` means => `luatest.lua` file next to the menus \*.toml.
+
 ```toml
 name = "luatest"
 name_pretty = "Lua Test"
