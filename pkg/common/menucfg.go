@@ -36,12 +36,14 @@ type Menu struct {
 	HistoryWhenEmpty     bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
 	MinScore             int32    `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 	Parent               string   `toml:"parent" desc:"defines the parent menu" default:""`
-	luaState             *lua.LState
 }
 
-func (m *Menu) initLua() {
+func (m Menu) GetLuaEntries() []Entry {
+	res := []Entry{}
+
 	l := lua.NewState()
 
+outer:
 	for _, v := range MenuConfigLoaded.Paths {
 		s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
 
@@ -49,21 +51,15 @@ func (m *Menu) initLua() {
 			if err := l.DoFile(s); err != nil {
 				slog.Error(m.Name, "initLua", err)
 				l.Close()
-				return
+				return res
 			}
 
-			m.luaState = l
-			return
+			break outer
 		}
 	}
 
-	l.Close()
-}
+	defer l.Close()
 
-func (m Menu) GetLuaEntries() []Entry {
-	res := []Entry{}
-
-	l := m.luaState
 	if l == nil {
 		slog.Error(m.Name, "GetLuaEntries", "lua state is nil")
 		return res
@@ -228,8 +224,6 @@ func LoadMenus() {
 						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
 					}
 				}
-			} else {
-				m.initLua()
 			}
 
 			Menus[m.Name] = m
