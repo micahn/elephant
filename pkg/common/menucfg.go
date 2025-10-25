@@ -28,6 +28,7 @@ type Menu struct {
 	Icon                 string   `toml:"icon" desc:"default icon"`
 	Action               string   `toml:"action" desc:"default menu action to use"`
 	Lua                  string   `toml:"lua" desc:"path to Lua script"`
+	LuaCache             bool     `toml:"lua_cache" desc:"will cache the results of the lua script on startup"`
 	Entries              []Entry  `toml:"entries" desc:"menu items"`
 	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
 	Keywords             []string `toml:"keywords" desc:"searchable keywords"`
@@ -36,33 +37,22 @@ type Menu struct {
 	HistoryWhenEmpty     bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
 	MinScore             int32    `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 	Parent               string   `toml:"parent" desc:"defines the parent menu" default:""`
+	luaString            string
+	luaState             *lua.LState
 }
 
-func (m Menu) GetLuaEntries() []Entry {
-	res := []Entry{}
-
+func (m *Menu) newLuaState() {
 	l := lua.NewState()
 
-outer:
-	for _, v := range MenuConfigLoaded.Paths {
-		s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
-
-		if FileExists(s) {
-			if err := l.DoFile(s); err != nil {
-				slog.Error(m.Name, "initLua", err)
-				l.Close()
-				return res
-			}
-
-			break outer
-		}
+	if err := l.DoString(m.luaString); err != nil {
+		slog.Error(m.Name, "newLuaState", err)
+		l.Close()
+		return
 	}
 
-	defer l.Close()
-
 	if l == nil {
-		slog.Error(m.Name, "GetLuaEntries", "lua state is nil")
-		return res
+		slog.Error(m.Name, "newLuaState", "lua state is nil")
+		return
 	}
 
 	if err := l.CallByParam(lua.P{
@@ -71,17 +61,27 @@ outer:
 		Protect: true,
 	}); err != nil {
 		slog.Error(m.Name, "GetLuaEntries", err)
-		return res
+		return
 	}
 
-	ret := l.Get(-1)
-	l.Pop(1)
+	m.luaState = l
+}
 
-	var entries []LuaEntry
+func (m *Menu) CreateLuaEntries() {
+	if m.luaState == nil {
+		slog.Error(m.Name, "CreateLuaEntries", "no lua state")
+		return
+	}
+
+	res := []Entry{}
+
+	ret := m.luaState.Get(-1)
+	m.luaState.Pop(1)
+
 	if table, ok := ret.(*lua.LTable); ok {
 		table.ForEach(func(key, value lua.LValue) {
 			if item, ok := value.(*lua.LTable); ok {
-				entry := LuaEntry{}
+				entry := Entry{}
 
 				if text := item.RawGetString("Text"); text != lua.LNil {
 					entry.Text = string(text.(lua.LString))
@@ -103,26 +103,17 @@ outer:
 					entry.Icon = string(icon.(lua.LString))
 				}
 
-				entries = append(entries, entry)
+				entry.Identifier = entry.CreateIdentifier()
+				entry.Menu = m.Name
+
+				res = append(res, entry)
 			}
 		})
 	}
 
-	for _, v := range entries {
-		e := Entry{
-			Text:       v.Text,
-			Subtext:    v.Subtext,
-			Value:      v.Value,
-			Icon:       v.Icon,
-			Preview:    v.Preview,
-			Identifier: v.CreateIdentifier(),
-			Menu:       m.Name,
-		}
+	m.Entries = res
 
-		res = append(res, e)
-	}
-
-	return res
+	go m.newLuaState()
 }
 
 type Entry struct {
@@ -141,19 +132,14 @@ type Entry struct {
 	Menu       string `toml:"-"`
 }
 
-type LuaEntry struct {
-	Text    string
-	Preview string
-	Subtext string
-	Value   string
-	Icon    string
-	Menu    string
-}
-
-func (l LuaEntry) CreateIdentifier() string {
-	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s", l.Menu, l.Text, l.Value))
-	return hex.EncodeToString(md5[:])
-}
+// type LuaEntry struct {
+// 	Text    string
+// 	Preview string
+// 	Subtext string
+// 	Value   string
+// 	Icon    string
+// 	Menu    string
+// }
 
 func (e Entry) CreateIdentifier() string {
 	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s", e.Menu, e.Text, e.Value))
@@ -223,6 +209,29 @@ func LoadMenus() {
 					if v.SubMenu != "" {
 						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
 					}
+				}
+			} else {
+				for _, v := range MenuConfigLoaded.Paths {
+					s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
+
+					if FileExists(s) {
+						m.Lua = s
+						break
+					}
+				}
+
+				b, err := os.ReadFile(m.Lua)
+				if err != nil {
+					slog.Error(m.Name, "lua read", err)
+					return nil
+				}
+
+				m.luaString = string(b)
+
+				m.newLuaState()
+
+				if m.LuaCache {
+					m.CreateLuaEntries()
 				}
 			}
 

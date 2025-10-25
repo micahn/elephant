@@ -142,6 +142,8 @@ value = "https://www.amazon.de/gp/video/storefront/"
 
 #### Lua Example
 
+By default, the Lua script will be called on every empty query. If you don't want this behaviour, but instead want to cache the query once, you can set `lua_cache=true` in the menu's config.
+
 **Important\***
 `lua = "luatest"` means => `luatest.lua` file next to the menus \*.toml.
 
