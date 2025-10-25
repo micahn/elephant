@@ -73,7 +73,13 @@ func Activate(identifier, action string, query string, args string) {
 				break
 			}
 
-			for _, entry := range v.Entries {
+			process := v.Entries
+
+			if v.Lua != "" {
+				process = v.GetLuaEntries()
+			}
+
+			for _, entry := range process {
 				if identifier == entry.Identifier {
 					menu = v
 					e = entry
@@ -181,7 +187,13 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			continue
 		}
 
-		for k, me := range v.Entries {
+		process := v.Entries
+
+		if v.Lua != "" {
+			process = v.GetLuaEntries()
+		}
+
+		for k, me := range process {
 			icon := v.Icon
 
 			if me.Icon != "" {

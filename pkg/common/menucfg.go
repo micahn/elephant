@@ -11,6 +11,8 @@ import (
 
 	"github.com/charlievieth/fastwalk"
 	"github.com/pelletier/go-toml/v2"
+
+	lua "github.com/yuin/gopher-lua"
 )
 
 type MenuConfig struct {
@@ -25,14 +27,106 @@ type Menu struct {
 	Description          string   `toml:"description" desc:"used as a subtext"`
 	Icon                 string   `toml:"icon" desc:"default icon"`
 	Action               string   `toml:"action" desc:"default menu action to use"`
+	Lua                  string   `toml:"lua" desc:"path to Lua script"`
 	Entries              []Entry  `toml:"entries" desc:"menu items"`
 	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
 	Keywords             []string `toml:"keywords" desc:"searchable keywords"`
 	FixedOrder           bool     `toml:"fixed_order" desc:"don't sort entries alphabetically"`
 	History              bool     `toml:"history" desc:"make use of history for sorting"`
 	HistoryWhenEmpty     bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
-	MinScore             int32    `koanf:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
-	Parent               string   `koanf:"parent" desc:"defines the parent menu" default:""`
+	MinScore             int32    `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
+	Parent               string   `toml:"parent" desc:"defines the parent menu" default:""`
+	luaState             *lua.LState
+}
+
+func (m *Menu) initLua() {
+	l := lua.NewState()
+
+	for _, v := range MenuConfigLoaded.Paths {
+		s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
+
+		if FileExists(s) {
+			if err := l.DoFile(s); err != nil {
+				slog.Error(m.Name, "initLua", err)
+				l.Close()
+				return
+			}
+
+			m.luaState = l
+			return
+		}
+	}
+
+	l.Close()
+}
+
+func (m Menu) GetLuaEntries() []Entry {
+	res := []Entry{}
+
+	l := m.luaState
+	if l == nil {
+		slog.Error(m.Name, "GetLuaEntries", "lua state is nil")
+		return res
+	}
+
+	if err := l.CallByParam(lua.P{
+		Fn:      l.GetGlobal("GetEntries"),
+		NRet:    1,
+		Protect: true,
+	}); err != nil {
+		slog.Error(m.Name, "GetLuaEntries", err)
+		return res
+	}
+
+	ret := l.Get(-1)
+	l.Pop(1)
+
+	var entries []LuaEntry
+	if table, ok := ret.(*lua.LTable); ok {
+		table.ForEach(func(key, value lua.LValue) {
+			if item, ok := value.(*lua.LTable); ok {
+				entry := LuaEntry{}
+
+				if text := item.RawGetString("Text"); text != lua.LNil {
+					entry.Text = string(text.(lua.LString))
+				}
+
+				if preview := item.RawGetString("Preview"); preview != lua.LNil {
+					entry.Preview = string(preview.(lua.LString))
+				}
+
+				if subtext := item.RawGetString("Subtext"); subtext != lua.LNil {
+					entry.Subtext = string(subtext.(lua.LString))
+				}
+
+				if val := item.RawGetString("Value"); val != lua.LNil {
+					entry.Value = string(val.(lua.LString))
+				}
+
+				if icon := item.RawGetString("Icon"); icon != lua.LNil {
+					entry.Icon = string(icon.(lua.LString))
+				}
+
+				entries = append(entries, entry)
+			}
+		})
+	}
+
+	for _, v := range entries {
+		e := Entry{
+			Text:       v.Text,
+			Subtext:    v.Subtext,
+			Value:      v.Value,
+			Icon:       v.Icon,
+			Preview:    v.Preview,
+			Identifier: v.CreateIdentifier(),
+			Menu:       m.Name,
+		}
+
+		res = append(res, e)
+	}
+
+	return res
 }
 
 type Entry struct {
@@ -49,6 +143,20 @@ type Entry struct {
 
 	Identifier string `toml:"-"`
 	Menu       string `toml:"-"`
+}
+
+type LuaEntry struct {
+	Text    string
+	Preview string
+	Subtext string
+	Value   string
+	Icon    string
+	Menu    string
+}
+
+func (l LuaEntry) CreateIdentifier() string {
+	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s", l.Menu, l.Text, l.Value))
+	return hex.EncodeToString(md5[:])
 }
 
 func (e Entry) CreateIdentifier() string {
@@ -87,6 +195,10 @@ func LoadMenus() {
 		}
 
 		if err := fastwalk.Walk(&conf, root, func(path string, d fs.DirEntry, err error) error {
+			if filepath.Ext(path) != ".toml" {
+				return nil
+			}
+
 			if err != nil {
 				return err
 			}
@@ -107,13 +219,17 @@ func LoadMenus() {
 				slog.Error(menuname, "setup", err)
 			}
 
-			for k, v := range m.Entries {
-				m.Entries[k].Menu = m.Name
-				m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
+			if m.Lua == "" {
+				for k, v := range m.Entries {
+					m.Entries[k].Menu = m.Name
+					m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
 
-				if v.SubMenu != "" {
-					m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
+					if v.SubMenu != "" {
+						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
+					}
 				}
+			} else {
+				m.initLua()
 			}
 
 			Menus[m.Name] = m

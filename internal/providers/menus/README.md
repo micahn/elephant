@@ -7,6 +7,7 @@ Create custom menus.
 - seamless menus
 - create submenus
 - define multiple actions per entry
+- dynamic entries via Lua
 
 #### How to create a menu
 
@@ -137,4 +138,42 @@ value = "https://drive.google.com"
 [[entries]]
 text = "Prime"
 value = "https://www.amazon.de/gp/video/storefront/"
+```
+
+#### Lua Example
+
+```toml
+name = "luatest"
+name_pretty = "Lua Test"
+icon = "applications-other"
+lua = "luatest"
+action = "notify-send %VALUE%"
+```
+
+```lua
+function GetEntries()
+    local entries = {}
+    local wallpaper_dir = "/home/andrej/Documents/ArchInstall/wallpapers"
+
+    local handle = io.popen("find '" ..
+        wallpaper_dir ..
+        "' -maxdepth 1 -type f -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.gif' -o -name '*.bmp' -o -name '*.webp' 2>/dev/null")
+    if handle then
+        for line in handle:lines() do
+            local filename = line:match("([^/]+)$")
+            if filename then
+                table.insert(entries, {
+                    Text = filename,
+                    Subtext = "wallpaper",
+                    Value = line,
+                    Icon = line
+                })
+            end
+        end
+        handle:close()
+    end
+
+    return entries
+end
+
 ```
