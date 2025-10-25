@@ -1,13 +1,15 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"crypto/md5"
 	_ "embed"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"slices"
@@ -37,6 +39,12 @@ type Config struct {
 }
 
 func Setup() {
+	// Start pprof server for profiling
+	go func() {
+		log.Println("Starting pprof server on :6060")
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	start := time.Now()
 
 	err := openDB()
@@ -58,8 +66,13 @@ func Setup() {
 	home, _ := os.UserHomeDir()
 	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
 
-	out, err := cmd.CombinedOutput()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		slog.Error(Name, "files", err)
+		os.Exit(1)
+	}
+
+	if err := cmd.Start(); err != nil {
 		slog.Error(Name, "files", err)
 		os.Exit(1)
 	}
@@ -97,13 +110,15 @@ func Setup() {
 		}
 	}()
 
-	toPut := []File{}
+	scanner := bufio.NewScanner(stdout)
+
+	batch := make([]File, 0, 5000)
 
 outer:
-	for v := range bytes.Lines(out) {
-		if len(v) > 0 {
-			path := strings.TrimSpace(string(v))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
 
+		if len(path) > 0 {
 			for _, v := range config.IgnoredDirs {
 				if strings.HasPrefix(path, v) {
 					continue outer
@@ -131,12 +146,31 @@ outer:
 					f.Changed = info.ChangeTime()
 				}
 
-				toPut = append(toPut, f)
+				batch = append(batch, f)
+
+				if len(batch) >= 5000 {
+					if err := putFileBatch(batch); err != nil {
+						slog.Error(Name, "batch insert", err)
+					}
+					batch = batch[:0]
+				}
 			}
 		}
 	}
 
-	putFileBatch(toPut)
+	if len(batch) > 0 {
+		if err := putFileBatch(batch); err != nil {
+			slog.Error(Name, "final batch insert", err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Error(Name, "scanner", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		slog.Error(Name, "cmd wait", err)
+	}
 
 	slog.Info(Name, "time", time.Since(start))
 }

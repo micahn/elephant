@@ -6,27 +6,25 @@ require (
 	github.com/adrg/xdg v0.5.3
 	github.com/djherbis/times v1.6.0
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/tinylib/msgp v1.4.0
 	google.golang.org/protobuf v1.36.8
 )
 
 require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/tinylib/msgp v1.4.0 // indirect
-	go.etcd.io/bbolt v1.4.3 // indirect
-	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
 )
 
 require (
-	github.com/Shopify/go-lua v0.0.0-20250718183320-1e37f32ad7d0
 	github.com/charlievieth/fastwalk v1.0.13
 	github.com/joho/godotenv v1.5.1
 	github.com/junegunn/fzf v0.65.2

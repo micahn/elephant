@@ -1,20 +1,16 @@
 package main
 
 import (
-	"fmt"
+	"database/sql"
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/pkg/common"
-	bolt "go.etcd.io/bbolt"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var (
-	db         *bolt.DB
-	bucketName = "files"
-)
+var db *sql.DB
 
 func openDB() error {
 	path := common.CacheFile("files.db")
@@ -23,48 +19,69 @@ func openDB() error {
 
 	var err error
 
-	db, err = bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err = sql.Open("sqlite3", path+"?_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=memory")
 	if err != nil {
 		return err
 	}
 
-	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS files (
+		identifier TEXT PRIMARY KEY,
+		path TEXT NOT NULL,
+		changed INTEGER
+	)`)
+	if err != nil {
 		return err
-	})
+	}
 
-	return err
+	// Create indexes for query performance
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_files_path ON files(path)`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_files_changed ON files(changed DESC)`)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func putFileBatch(files []File) error {
-	return db.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
-		for _, f := range files {
-			data, err := f.MarshalMsg(nil)
-			if err != nil {
-				return err
-			}
+	stmt, err := tx.Prepare("INSERT OR REPLACE INTO files (identifier, path, changed) VALUES (?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
 
-			if err := b.Put([]byte(f.Identifier), data); err != nil {
-				return err
-			}
+	for _, f := range files {
+		changedUnix := int64(0)
+		if !f.Changed.IsZero() {
+			changedUnix = f.Changed.Unix()
 		}
-
-		return nil
-	})
-}
-
-func putFile(f File) {
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-
-		data, err := f.MarshalMsg(nil)
+		_, err = stmt.Exec(f.Identifier, f.Path, changedUnix)
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(f.Identifier), data)
-	})
+	}
+
+	return tx.Commit()
+}
+
+func putFile(f File) {
+	changedUnix := int64(0)
+	if !f.Changed.IsZero() {
+		changedUnix = f.Changed.Unix()
+	}
+
+	_, err := db.Exec("INSERT OR REPLACE INTO files (identifier, path, changed) VALUES (?, ?, ?)",
+		f.Identifier, f.Path, changedUnix)
 	if err != nil {
 		slog.Error(Name, "put", err)
 	}
@@ -72,101 +89,80 @@ func putFile(f File) {
 
 func getFile(identifier string) *File {
 	var f File
+	var changedUnix int64
 
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-
-		v := b.Get([]byte(identifier))
-		if v == nil {
-			return fmt.Errorf("file not found: %s", identifier)
-		}
-
-		_, err := f.UnmarshalMsg(v)
-		return err
-	})
+	err := db.QueryRow("SELECT identifier, path, changed FROM files WHERE identifier = ?", identifier).
+		Scan(&f.Identifier, &f.Path, &changedUnix)
 	if err != nil {
 		return nil
+	}
+
+	if changedUnix > 0 {
+		f.Changed = time.Unix(changedUnix, 0)
 	}
 
 	return &f
 }
 
-func deleteFile(identifier string) error {
-	return db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-		return b.Delete([]byte(identifier))
-	})
-}
-
 type Result struct {
-	f         *File
+	f         File
 	positions []int32
 	start     int32
 	score     int32
 }
 
-func getFilesByQuery(query string, exact bool) []Result {
+func getFilesByQuery(query string, _ bool) []Result {
 	start := time.Now()
 
 	var result []Result
 
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-		c := b.Cursor()
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var f File
-			if _, err := f.UnmarshalMsg(v); err != nil {
-				continue
-			}
-
-			if query != "" {
-				score, positions, s := common.FuzzyScore(query, f.Path, exact)
-				if score > config.MinScore {
-					result = append(result, Result{
-						score:     score,
-						f:         &f,
-						positions: positions,
-						start:     s,
-					})
-				}
-			} else {
-				if !strings.HasSuffix(f.Path, "/") {
-					score := calcScore(f.Changed, start)
-					result = append(result, Result{
-						score: score,
-						f:     &f,
-					})
-				}
-			}
-		}
+	path := common.CacheFile("files.db")
+	queryDB, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=memory")
+	if err != nil {
+		slog.Error(Name, "open query db", err)
 		return nil
-	})
+	}
+	defer queryDB.Close()
+
+	var rows *sql.Rows
+
+	if query != "" {
+		likePattern := "%" + query + "%"
+		rows, err = queryDB.Query("SELECT identifier, path, changed FROM files WHERE path LIKE ? ORDER BY changed DESC LIMIT 1000", likePattern)
+	} else {
+		rows, err = queryDB.Query("SELECT identifier, path, changed FROM files WHERE path NOT LIKE '%/' ORDER BY changed DESC LIMIT 100")
+	}
+
 	if err != nil {
 		slog.Error(Name, "read", err)
 		return nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var f File
+		var changedUnix int64
+
+		if err := rows.Scan(&f.Identifier, &f.Path, &changedUnix); err != nil {
+			continue
+		}
+
+		if changedUnix > 0 {
+			f.Changed = time.Unix(changedUnix, 0)
+		}
+
+		score := calcScore(f.Changed, start)
+		result = append(result, Result{
+			score: score,
+			f:     f,
+		})
 	}
 
 	return result
 }
 
 func deleteFileByPath(path string) {
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-
-		return b.ForEach(func(k, v []byte) error {
-			var f File
-			if _, err := f.UnmarshalMsg(v); err != nil {
-				return err
-			}
-
-			if strings.HasPrefix(f.Path, path) {
-				deleteFile(f.Identifier)
-			}
-
-			return nil
-		})
-	})
+	_, err := db.Exec("DELETE FROM files WHERE path LIKE ?", path+"%")
 	if err != nil {
 		slog.Error(Name, "delete", err)
 	}
