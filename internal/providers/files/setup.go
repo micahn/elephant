@@ -36,6 +36,7 @@ type Config struct {
 	common.Config `koanf:",squash"`
 	LaunchPrefix  string   `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
 	IgnoredDirs   []string `koanf:"ignored_dirs" desc:"ignore these directories" default:""`
+	FdFlags       string   `koanf:"fd_flags" desc:"flags for fd" default:"--ignore-vcs --type file --type directory"`
 }
 
 func Setup() {
@@ -59,12 +60,14 @@ func Setup() {
 			MinScore: 20,
 		},
 		LaunchPrefix: "",
+		FdFlags:      "--ignore-vcs --type file --type directory",
 	}
 
 	common.LoadConfig(Name, config)
 
 	home, _ := os.UserHomeDir()
-	cmd := exec.Command("fd", ".", home, "--ignore-vcs", "--type", "file", "--type", "directory")
+	cmd := exec.Command("fd", ".", home)
+	cmd.Args = append(cmd.Args, strings.Fields(config.FdFlags)...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -163,10 +166,6 @@ func Setup() {
 			if err := putFileBatch(batch); err != nil {
 				slog.Error(Name, "final batch insert", err)
 			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			slog.Error(Name, "scanner", err)
 		}
 	}()
 
