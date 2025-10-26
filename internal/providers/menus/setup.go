@@ -262,6 +262,10 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 				e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
 
+				if v.SearchName {
+					me.Keywords = append(me.Keywords, me.Menu)
+				}
+
 				for _, v := range me.Keywords {
 					score, positions, start := common.FuzzyScore(query, v, exact)
 

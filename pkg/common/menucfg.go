@@ -28,6 +28,7 @@ type Menu struct {
 	Icon                 string   `toml:"icon" desc:"default icon"`
 	Action               string   `toml:"action" desc:"default menu action to use"`
 	Lua                  string   `toml:"lua" desc:"path to Lua script"`
+	SearchName           bool     `toml:"search_name" desc:"wether to search for the menu name as well when searching globally" default:"false"`
 	LuaCache             bool     `toml:"lua_cache" desc:"will cache the results of the lua script on startup"`
 	Entries              []Entry  `toml:"entries" desc:"menu items"`
 	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
