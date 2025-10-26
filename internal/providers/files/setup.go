@@ -110,63 +110,65 @@ func Setup() {
 		}
 	}()
 
-	scanner := bufio.NewScanner(stdout)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
 
-	batch := make([]File, 0, 5000)
+		batch := make([]File, 0, 5000)
 
-outer:
-	for scanner.Scan() {
-		path := strings.TrimSpace(scanner.Text())
+	outer:
+		for scanner.Scan() {
+			path := strings.TrimSpace(scanner.Text())
 
-		if len(path) > 0 {
-			for _, v := range config.IgnoredDirs {
-				if strings.HasPrefix(path, v) {
-					continue outer
-				}
-			}
-
-			if strings.HasSuffix(path, "/") {
-				watcher.Add(path)
-			}
-
-			if info, err := times.Stat(path); err == nil {
-				diff := start.Sub(info.ChangeTime())
-
-				md5 := md5.Sum([]byte(path))
-				md5str := hex.EncodeToString(md5[:])
-
-				f := File{
-					Identifier: md5str,
-					Path:       path,
-					Changed:    time.Time{},
-				}
-
-				res := 3600 - diff.Seconds()
-				if res > 0 {
-					f.Changed = info.ChangeTime()
-				}
-
-				batch = append(batch, f)
-
-				if len(batch) >= 5000 {
-					if err := putFileBatch(batch); err != nil {
-						slog.Error(Name, "batch insert", err)
+			if len(path) > 0 {
+				for _, v := range config.IgnoredDirs {
+					if strings.HasPrefix(path, v) {
+						continue outer
 					}
-					batch = batch[:0]
+				}
+
+				if strings.HasSuffix(path, "/") {
+					watcher.Add(path)
+				}
+
+				if info, err := times.Stat(path); err == nil {
+					diff := start.Sub(info.ChangeTime())
+
+					md5 := md5.Sum([]byte(path))
+					md5str := hex.EncodeToString(md5[:])
+
+					f := File{
+						Identifier: md5str,
+						Path:       path,
+						Changed:    time.Time{},
+					}
+
+					res := 3600 - diff.Seconds()
+					if res > 0 {
+						f.Changed = info.ChangeTime()
+					}
+
+					batch = append(batch, f)
+
+					if len(batch) >= 5000 {
+						if err := putFileBatch(batch); err != nil {
+							slog.Error(Name, "batch insert", err)
+						}
+						batch = batch[:0]
+					}
 				}
 			}
 		}
-	}
 
-	if len(batch) > 0 {
-		if err := putFileBatch(batch); err != nil {
-			slog.Error(Name, "final batch insert", err)
+		if len(batch) > 0 {
+			if err := putFileBatch(batch); err != nil {
+				slog.Error(Name, "final batch insert", err)
+			}
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		slog.Error(Name, "scanner", err)
-	}
+		if err := scanner.Err(); err != nil {
+			slog.Error(Name, "scanner", err)
+		}
+	}()
 
 	if err := cmd.Wait(); err != nil {
 		slog.Error(Name, "cmd wait", err)
