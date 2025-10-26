@@ -212,13 +212,21 @@ func LoadMenus() {
 					}
 				}
 			} else {
+				found := false
+
 				for _, v := range MenuConfigLoaded.Paths {
 					s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
 
 					if FileExists(s) {
 						m.Lua = s
+						found = true
 						break
 					}
+				}
+
+				if !found {
+					slog.Error(m.Name, "LoadMenus", "Lua script not found")
+					return nil
 				}
 
 				b, err := os.ReadFile(m.Lua)
