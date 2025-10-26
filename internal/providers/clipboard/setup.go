@@ -52,6 +52,8 @@ var unicodedata string
 //go:embed data/symbols.xml
 var symbolsdata string
 
+var paused bool
+
 const StateEditable = "editable"
 
 type Item struct {
@@ -281,7 +283,9 @@ func handleChangeText() {
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		updateText()
+		if !paused {
+			updateText()
+		}
 	}
 }
 
@@ -307,7 +311,9 @@ func handleChangeImage() {
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		updateImage()
+		if !paused {
+			updateImage()
+		}
 	}
 }
 
@@ -490,6 +496,8 @@ func PrintDoc() {
 }
 
 const (
+	ActionPause             = "pause"
+	ActionUnpause           = "unpause"
 	ActionCopy              = "copy"
 	ActionEdit              = "edit"
 	ActionRemove            = "remove"
@@ -504,6 +512,10 @@ func Activate(identifier, action string, query string, args string) {
 	}
 
 	switch action {
+	case ActionPause:
+		paused = true
+	case ActionUnpause:
+		paused = false
 	case ActionDisableImagesOnly:
 		imagesOnly = false
 		return
