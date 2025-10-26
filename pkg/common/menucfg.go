@@ -104,6 +104,19 @@ func (m *Menu) CreateLuaEntries() {
 					entry.Icon = string(icon.(lua.LString))
 				}
 
+				if actions := item.RawGet(lua.LString("Actions")); actions != lua.LNil {
+					if actionsTable, ok := actions.(*lua.LTable); ok {
+						entry.Actions = make(map[string]string)
+						actionsTable.ForEach(func(key, value lua.LValue) {
+							if keyStr, keyOk := key.(lua.LString); keyOk {
+								if valueStr, valueOk := value.(lua.LString); valueOk {
+									entry.Actions[string(keyStr)] = string(valueStr)
+								}
+							}
+						})
+					}
+				}
+
 				entry.Identifier = entry.CreateIdentifier()
 				entry.Menu = m.Name
 
