@@ -199,6 +199,8 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			if !single {
 				if sub == "" {
 					sub = v.NamePretty
+				} else {
+					sub = fmt.Sprintf("%s: %s", v.NamePretty, sub)
 				}
 			}
 
