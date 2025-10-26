@@ -52,7 +52,10 @@ var unicodedata string
 //go:embed data/symbols.xml
 var symbolsdata string
 
-var paused bool
+var (
+	paused       bool
+	saveFileChan = make(chan struct{})
+)
 
 const StateEditable = "editable"
 
@@ -102,6 +105,7 @@ func Setup() {
 
 	go handleChangeImage()
 	go handleChangeText()
+	go handleSaveToFile()
 
 	if config.IgnoreSymbols {
 		setupUnicodeSymbols()
@@ -262,7 +266,7 @@ func saveToFile() {
 }
 
 func handleChangeText() {
-	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "echo", "")
+	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "sh", "-c", "cat;echo")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -284,7 +288,7 @@ func handleChangeText() {
 
 	for scanner.Scan() {
 		if !paused {
-			updateText()
+			updateText(scanner.Text())
 		}
 	}
 }
@@ -337,6 +341,24 @@ func recopy(b []byte) {
 	}
 }
 
+func handleSaveToFile() {
+	timer := time.NewTimer(time.Second * 5)
+	do := false
+
+	for {
+		select {
+		case <-saveFileChan:
+			timer.Reset(time.Second * 5)
+			do = true
+		case <-timer.C:
+			if do {
+				saveToFile()
+				do = false
+			}
+		}
+	}
+}
+
 func updateImage() {
 	cmd := exec.Command("wl-paste", "-t", "image", "-n")
 
@@ -368,42 +390,29 @@ func updateImage() {
 
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
-		return
-	}
-
-	if file := saveImg(out, "raw"); file != "" {
-		clipboardhistory[md5str] = &Item{
-			Img:   file,
-			Time:  time.Now(),
-			State: StateEditable,
+	} else {
+		if file := saveImg(out, "raw"); file != "" {
+			clipboardhistory[md5str] = &Item{
+				Img:   file,
+				Time:  time.Now(),
+				State: StateEditable,
+			}
 		}
+
+		recopy(out)
 	}
 
-	recopy(out)
-
-	saveToFile()
+	saveFileChan <- struct{}{}
 }
 
-func updateText() {
-	cmd := exec.Command("wl-paste", "-t", "text", "-n")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		if strings.Contains(string(out), "Nothing is copied") {
-			return
-		}
-
-		slog.Error("clipboard", "error", err)
-
-		return
-	}
-
-	if strings.TrimSpace(string(out)) == "" {
+func updateText(text string) {
+	if strings.TrimSpace(text) == "" {
 		return
 	}
 
 	if config.IgnoreSymbols {
 		mu.Lock()
-		if _, ok := symbols[string(out)]; ok {
+		if _, ok := symbols[text]; ok {
 			return
 		}
 		mu.Unlock()
@@ -425,27 +434,27 @@ func updateText() {
 		}
 	}
 
-	md5 := md5.Sum(out)
+	b := []byte(text)
+	md5 := md5.Sum(b)
 	md5str := hex.EncodeToString(md5[:])
 
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
-		return
+	} else {
+		if !utf8.Valid(b) {
+			slog.Error(Name, "updating", "string content contains invalid UTF-8")
+		}
+
+		clipboardhistory[md5str] = &Item{
+			Content: text,
+			Time:    time.Now(),
+			State:   StateEditable,
+		}
+
+		recopy(b)
 	}
 
-	if !utf8.Valid(out) {
-		slog.Error(Name, "updating", "string content contains invalid UTF-8")
-	}
-
-	clipboardhistory[md5str] = &Item{
-		Content: string(out),
-		Time:    time.Now(),
-		State:   StateEditable,
-	}
-
-	recopy(out)
-
-	saveToFile()
+	saveFileChan <- struct{}{}
 }
 
 func trim() {
