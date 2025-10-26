@@ -58,7 +58,7 @@ func Activate(identifier, action string, query string, args string) {
 		return
 	default:
 		var e common.Entry
-		var menu common.Menu
+		var menu *common.Menu
 
 		identifier = strings.TrimPrefix(identifier, "menus:")
 

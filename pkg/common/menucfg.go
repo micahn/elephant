@@ -150,7 +150,7 @@ func (e Entry) CreateIdentifier() string {
 var (
 	MenuConfigLoaded MenuConfig
 	menuname         = "menus"
-	Menus            = make(map[string]Menu)
+	Menus            = make(map[string]*Menu)
 )
 
 func LoadMenus() {
@@ -244,7 +244,7 @@ func LoadMenus() {
 				}
 			}
 
-			Menus[m.Name] = m
+			Menus[m.Name] = &m
 
 			return nil
 		}); err != nil {
