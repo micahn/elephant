@@ -55,21 +55,21 @@ func (m *Menu) newLuaState() {
 		return
 	}
 
-	if err := l.CallByParam(lua.P{
-		Fn:      l.GetGlobal("GetEntries"),
-		NRet:    1,
-		Protect: true,
-	}); err != nil {
-		slog.Error(m.Name, "GetLuaEntries", err)
-		return
-	}
-
 	m.luaState = l
 }
 
 func (m *Menu) CreateLuaEntries() {
 	if m.luaState == nil {
 		slog.Error(m.Name, "CreateLuaEntries", "no lua state")
+		return
+	}
+
+	if err := m.luaState.CallByParam(lua.P{
+		Fn:      m.luaState.GetGlobal("GetEntries"),
+		NRet:    1,
+		Protect: true,
+	}); err != nil {
+		slog.Error(m.Name, "GetLuaEntries", err)
 		return
 	}
 
