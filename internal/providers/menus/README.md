@@ -7,7 +7,7 @@ Create custom menus.
 - seamless menus
 - create submenus
 - define multiple actions per entry
-- dynamic entries via Lua
+- dynamic menus with Lua
 
 #### How to create a menu
 
@@ -142,20 +142,18 @@ value = "https://www.amazon.de/gp/video/storefront/"
 
 #### Lua Example
 
-By default, the Lua script will be called on every empty query. If you don't want this behaviour, but instead want to cache the query once, you can set `lua_cache=true` in the menu's config.
-
-**Important\***
-`lua = "luatest"` means => `luatest.lua` file next to the menus \*.toml.
-
-```toml
-name = "luatest"
-name_pretty = "Lua Test"
-icon = "applications-other"
-lua = "luatest"
-action = "notify-send %VALUE%"
-```
+By default, the Lua script will be called on every empty query. If you don't want this behaviour, but instead want to cache the query once, you can set `Cache=true` in the menu's config.
 
 ```lua
+Name = "luatest"
+NamePretty = "Lua Test"
+Icon = "applications-other"
+Cache = true
+Action = "notify-send %VALUE%"
+HideFromProviderlist = false
+Description = "lua test menu"
+SearchName = true
+
 function GetEntries()
     local entries = {}
     local wallpaper_dir = "/home/andrej/Documents/ArchInstall/wallpapers"
@@ -171,7 +169,12 @@ function GetEntries()
                     Text = filename,
                     Subtext = "wallpaper",
                     Value = line,
-                    Icon = line
+                    Actions = {
+                        up = "notify-send up",
+                        down = "notify-send down",
+                    },
+                    -- Preview = line,
+                    -- Icon = line
                 })
             end
         end
@@ -180,5 +183,4 @@ function GetEntries()
 
     return entries
 end
-
 ```

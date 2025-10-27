@@ -27,9 +27,8 @@ type Menu struct {
 	Description          string   `toml:"description" desc:"used as a subtext"`
 	Icon                 string   `toml:"icon" desc:"default icon"`
 	Action               string   `toml:"action" desc:"default menu action to use"`
-	Lua                  string   `toml:"lua" desc:"path to Lua script"`
 	SearchName           bool     `toml:"search_name" desc:"wether to search for the menu name as well when searching globally" default:"false"`
-	LuaCache             bool     `toml:"lua_cache" desc:"will cache the results of the lua script on startup"`
+	Cache                bool     `toml:"cache" desc:"will cache the results of the lua script on startup"`
 	Entries              []Entry  `toml:"entries" desc:"menu items"`
 	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
 	Keywords             []string `toml:"keywords" desc:"searchable keywords"`
@@ -38,8 +37,11 @@ type Menu struct {
 	HistoryWhenEmpty     bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
 	MinScore             int32    `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 	Parent               string   `toml:"parent" desc:"defines the parent menu" default:""`
-	luaString            string
-	luaState             *lua.LState
+
+	// internal
+	luaString string
+	IsLua     bool `toml:"-"`
+	luaState  *lua.LState
 }
 
 func (m *Menu) newLuaState() {
@@ -191,10 +193,6 @@ func LoadMenus() {
 		}
 
 		if err := fastwalk.Walk(&conf, root, func(path string, d fs.DirEntry, err error) error {
-			if filepath.Ext(path) != ".toml" {
-				return nil
-			}
-
 			if err != nil {
 				return err
 			}
@@ -203,61 +201,12 @@ func LoadMenus() {
 				return nil
 			}
 
-			m := Menu{}
-
-			b, err := os.ReadFile(path)
-			if err != nil {
-				slog.Error(menuname, "setup", err)
+			switch filepath.Ext(path) {
+			case ".toml":
+				createTomlMenu(path)
+			case ".lua":
+				createLuaMenu(path)
 			}
-
-			err = toml.Unmarshal(b, &m)
-			if err != nil {
-				slog.Error(menuname, "setup", err)
-			}
-
-			if m.Lua == "" {
-				for k, v := range m.Entries {
-					m.Entries[k].Menu = m.Name
-					m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
-
-					if v.SubMenu != "" {
-						m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
-					}
-				}
-			} else {
-				found := false
-
-				for _, v := range MenuConfigLoaded.Paths {
-					s := filepath.Join(v, fmt.Sprintf("%s.lua", m.Lua))
-
-					if FileExists(s) {
-						m.Lua = s
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					slog.Error(m.Name, "LoadMenus", "Lua script not found")
-					return nil
-				}
-
-				b, err := os.ReadFile(m.Lua)
-				if err != nil {
-					slog.Error(m.Name, "lua read", err)
-					return nil
-				}
-
-				m.luaString = string(b)
-
-				m.newLuaState()
-
-				if m.LuaCache {
-					m.CreateLuaEntries()
-				}
-			}
-
-			Menus[m.Name] = &m
 
 			return nil
 		}); err != nil {
@@ -265,4 +214,122 @@ func LoadMenus() {
 			os.Exit(1)
 		}
 	}
+}
+
+func createLuaMenu(path string) {
+	m := Menu{}
+	m.IsLua = true
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		slog.Error(m.Name, "lua read", err)
+		return
+	}
+
+	m.luaString = string(b)
+
+	m.newLuaState()
+
+	if val := m.luaState.GetGlobal("Name"); val != lua.LNil {
+		m.Name = string(val.(lua.LString))
+	}
+
+	if val := m.luaState.GetGlobal("NamePretty"); val != lua.LNil {
+		m.NamePretty = string(val.(lua.LString))
+	}
+
+	if val := m.luaState.GetGlobal("HideFromProviderlist"); val != lua.LNil {
+		m.HideFromProviderlist = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("Description"); val != lua.LNil {
+		m.Description = string(val.(lua.LString))
+	}
+
+	if val := m.luaState.GetGlobal("Icon"); val != lua.LNil {
+		m.Icon = string(val.(lua.LString))
+	}
+
+	if val := m.luaState.GetGlobal("Action"); val != lua.LNil {
+		m.Action = string(val.(lua.LString))
+	}
+
+	if val := m.luaState.GetGlobal("SearchName"); val != lua.LNil {
+		m.SearchName = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("Cache"); val != lua.LNil {
+		m.Cache = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("Terminal"); val != lua.LNil {
+		m.Terminal = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("Keywords"); val != lua.LNil {
+		if table, ok := val.(*lua.LTable); ok {
+			m.Keywords = make([]string, 0)
+			table.ForEach(func(key, value lua.LValue) {
+				if str, ok := value.(lua.LString); ok {
+					m.Keywords = append(m.Keywords, string(str))
+				}
+			})
+		}
+	}
+
+	if val := m.luaState.GetGlobal("FixedOrder"); val != lua.LNil {
+		m.FixedOrder = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("History"); val != lua.LNil {
+		m.History = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("HistoryWhenEmpty"); val != lua.LNil {
+		m.HistoryWhenEmpty = bool(val.(lua.LBool))
+	}
+
+	if val := m.luaState.GetGlobal("MinScore"); val != lua.LNil {
+		m.MinScore = int32(val.(lua.LNumber))
+	}
+
+	if val := m.luaState.GetGlobal("Parent"); val != lua.LNil {
+		m.Parent = string(val.(lua.LString))
+	}
+
+	if m.Cache {
+		m.CreateLuaEntries()
+	}
+
+	if m.Name == "" || m.NamePretty == "" {
+		slog.Error("menus", "path", path, "error", "missing Name or NamePretty")
+		return
+	}
+
+	Menus[m.Name] = &m
+}
+
+func createTomlMenu(path string) {
+	m := Menu{}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		slog.Error(menuname, "setup", err)
+	}
+
+	err = toml.Unmarshal(b, &m)
+	if err != nil {
+		slog.Error(menuname, "setup", err)
+	}
+
+	for k, v := range m.Entries {
+		m.Entries[k].Menu = m.Name
+		m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
+
+		if v.SubMenu != "" {
+			m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
+		}
+	}
+
+	Menus[m.Name] = &m
 }

@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"slices"
@@ -40,12 +38,6 @@ type Config struct {
 }
 
 func Setup() {
-	// Start pprof server for profiling
-	go func() {
-		log.Println("Starting pprof server on :6060")
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
 	start := time.Now()
 
 	err := openDB()
