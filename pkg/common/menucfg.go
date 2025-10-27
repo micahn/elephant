@@ -255,6 +255,19 @@ func createLuaMenu(path string) {
 		m.Action = string(val.(lua.LString))
 	}
 
+	if val := m.luaState.GetGlobal("Actions"); val != lua.LNil {
+		if table, ok := val.(*lua.LTable); ok {
+			m.Actions = make(map[string]string)
+			table.ForEach(func(key, value lua.LValue) {
+				if keyStr, keyOk := key.(lua.LString); keyOk {
+					if valueStr, valueOk := value.(lua.LString); valueOk {
+						m.Actions[string(keyStr)] = string(valueStr)
+					}
+				}
+			})
+		}
+	}
+
 	if val := m.luaState.GetGlobal("SearchName"); val != lua.LNil {
 		m.SearchName = bool(val.(lua.LBool))
 	}

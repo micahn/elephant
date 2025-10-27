@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -92,7 +93,7 @@ func Activate(identifier, action string, query string, args string) {
 			return
 		}
 
-		run := menu.Action
+		run := ""
 
 		if after, ok := strings.CutPrefix(identifier, "dmenu:"); ok {
 			run = after
@@ -104,7 +105,21 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if len(e.Actions) != 0 {
-			run = e.Actions[action]
+			if val, ok := e.Actions[action]; ok {
+				action = val
+			}
+		}
+
+		if run == "" {
+			if len(menu.Actions) != 0 {
+				if val, ok := menu.Actions[action]; ok {
+					run = val
+				}
+			}
+		}
+
+		if run == "" {
+			run = menu.Action
 		}
 
 		if run == "" {
@@ -212,6 +227,12 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 			for k := range me.Actions {
 				actions = append(actions, k)
+			}
+
+			for k := range v.Actions {
+				if !slices.Contains(actions, k) {
+					actions = append(actions, k)
+				}
 			}
 
 			if strings.HasPrefix(me.Identifier, "menus:") {
