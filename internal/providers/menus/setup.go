@@ -17,6 +17,7 @@ import (
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	lua "github.com/yuin/gopher-lua"
 )
 
 var (
@@ -106,7 +107,7 @@ func Activate(identifier, action string, query string, args string) {
 
 		if len(e.Actions) != 0 {
 			if val, ok := e.Actions[action]; ok {
-				action = val
+				run = val
 			}
 		}
 
@@ -123,6 +124,31 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if run == "" {
+			return
+		}
+
+		if after, ok := strings.CutPrefix(run, "lua:"); ok {
+			if menu != nil && menu.LuaState != nil {
+				functionName := after
+
+				if err := menu.LuaState.CallByParam(lua.P{
+					Fn:      menu.LuaState.GetGlobal(functionName),
+					NRet:    0,
+					Protect: true,
+				}, lua.LString(e.Value), lua.LString(args)); err != nil {
+					slog.Error(Name, "lua function call", err, "function", functionName)
+				}
+
+				if menu.History {
+					h.Save(query, identifier)
+				}
+			} else {
+				menuName := "unknown"
+				if menu != nil {
+					menuName = menu.Name
+				}
+				slog.Error(Name, "no lua state available for menu", menuName)
+			}
 			return
 		}
 

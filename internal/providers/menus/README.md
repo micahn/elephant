@@ -184,3 +184,16 @@ function GetEntries()
     return entries
 end
 ```
+
+You can call Lua functions as actions as well:
+
+```Lua
+Actions = {
+    test = "lua:Test",
+}
+
+function Test(value, args)
+    os.execute("notify-send '" .. value .. "'")
+    os.execute("notify-send '" .. args .. "'")
+end
+```
