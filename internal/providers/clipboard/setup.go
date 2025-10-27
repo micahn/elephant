@@ -266,7 +266,7 @@ func saveToFile() {
 }
 
 func handleChangeText() {
-	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "sh", "-c", "cat;echo")
+	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "sh", "-c", "cat; echo; echo '%STOPCLIPBOARD%'")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -285,10 +285,18 @@ func handleChangeText() {
 	}
 
 	scanner := bufio.NewScanner(stdout)
+	var lines []string
 
 	for scanner.Scan() {
-		if !paused {
-			updateText(scanner.Text())
+		line := scanner.Text()
+
+		if strings.TrimSpace(line) == "%STOPCLIPBOARD%" {
+			if len(lines) > 0 {
+				updateText(strings.Join(lines, "\n"))
+			}
+			lines = lines[:0]
+		} else {
+			lines = append(lines, line)
 		}
 	}
 }

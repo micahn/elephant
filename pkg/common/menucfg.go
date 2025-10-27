@@ -21,22 +21,23 @@ type MenuConfig struct {
 }
 
 type Menu struct {
-	HideFromProviderlist bool     `toml:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
-	Name                 string   `toml:"name" desc:"name of the menu"`
-	NamePretty           string   `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
-	Description          string   `toml:"description" desc:"used as a subtext"`
-	Icon                 string   `toml:"icon" desc:"default icon"`
-	Action               string   `toml:"action" desc:"default menu action to use"`
-	SearchName           bool     `toml:"search_name" desc:"wether to search for the menu name as well when searching globally" default:"false"`
-	Cache                bool     `toml:"cache" desc:"will cache the results of the lua script on startup"`
-	Entries              []Entry  `toml:"entries" desc:"menu items"`
-	Terminal             bool     `toml:"terminal" desc:"execute action in terminal or not"`
-	Keywords             []string `toml:"keywords" desc:"searchable keywords"`
-	FixedOrder           bool     `toml:"fixed_order" desc:"don't sort entries alphabetically"`
-	History              bool     `toml:"history" desc:"make use of history for sorting"`
-	HistoryWhenEmpty     bool     `toml:"history_when_empty" desc:"consider history when query is empty"`
-	MinScore             int32    `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
-	Parent               string   `toml:"parent" desc:"defines the parent menu" default:""`
+	HideFromProviderlist bool              `toml:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
+	Name                 string            `toml:"name" desc:"name of the menu"`
+	NamePretty           string            `toml:"name_pretty" desc:"prettier name you usually want to display to the user."`
+	Description          string            `toml:"description" desc:"used as a subtext"`
+	Icon                 string            `toml:"icon" desc:"default icon"`
+	Action               string            `toml:"action" desc:"default menu action to use"`
+	Actions              map[string]string `toml:"actions" desc:"global actions"`
+	SearchName           bool              `toml:"search_name" desc:"wether to search for the menu name as well when searching globally" default:"false"`
+	Cache                bool              `toml:"cache" desc:"will cache the results of the lua script on startup"`
+	Entries              []Entry           `toml:"entries" desc:"menu items"`
+	Terminal             bool              `toml:"terminal" desc:"execute action in terminal or not"`
+	Keywords             []string          `toml:"keywords" desc:"searchable keywords"`
+	FixedOrder           bool              `toml:"fixed_order" desc:"don't sort entries alphabetically"`
+	History              bool              `toml:"history" desc:"make use of history for sorting"`
+	HistoryWhenEmpty     bool              `toml:"history_when_empty" desc:"consider history when query is empty"`
+	MinScore             int32             `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
+	Parent               string            `toml:"parent" desc:"defines the parent menu" default:""`
 
 	// internal
 	luaString string
