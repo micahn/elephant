@@ -154,11 +154,6 @@ func Activate(identifier, action string, query string, args string) {
 
 		pipe := false
 
-		val := e.Value
-		if args != "" {
-			val = args
-		}
-
 		if strings.Contains(run, "%CLIPBOARD%") {
 			clipboard := common.ClipboardText()
 
@@ -172,9 +167,11 @@ func Activate(identifier, action string, query string, args string) {
 			if !strings.Contains(run, "%VALUE%") {
 				pipe = true
 			} else {
-				run = strings.ReplaceAll(run, "%VALUE%", val)
+				run = strings.ReplaceAll(run, "%VALUE%", e.Value)
 			}
 		}
+
+		run = strings.ReplaceAll(run, "%ARGS%", args)
 
 		if terminal {
 			run = common.WrapWithTerminal(run)
@@ -187,7 +184,7 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if pipe && e.Value != "" {
-			cmd.Stdin = strings.NewReader(val)
+			cmd.Stdin = strings.NewReader(e.Value)
 		}
 
 		out, err := cmd.CombinedOutput()
