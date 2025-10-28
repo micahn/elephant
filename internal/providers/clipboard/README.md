@@ -11,3 +11,4 @@ Store clipboard history.
 #### Requirements
 
 - `wl-clipboard`
+- `imagemagick`

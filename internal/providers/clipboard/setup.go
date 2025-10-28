@@ -399,7 +399,19 @@ func updateImage() {
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
 	} else {
-		if file := saveImg(out, "raw"); file != "" {
+		cmd = exec.Command("identify", "-format", "%m", "-")
+		cmd.Stdin = bytes.NewReader(out)
+
+		res, err := cmd.CombinedOutput()
+		if err != nil {
+			slog.Error(Name, "update image", err, "msg", res)
+			return
+		}
+
+		ext := strings.ToLower(string(res))
+		ext = strings.TrimSpace(ext)
+
+		if file := saveImg(out, ext); file != "" {
 			clipboardhistory[md5str] = &Item{
 				Img:   file,
 				Time:  time.Now(),
