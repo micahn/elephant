@@ -34,13 +34,12 @@ func InitRunPrefix() {
 		}
 	}
 
-	// TODO: enable once niri bug is fixed
-	// niri, err := exec.LookPath("niri")
-	// if err == nil && niri != "" {
-	// 	runPrefix = "niri msg action spawn-sh --"
-	// slog.Info("config", "runprefix autodetect", runPrefix)
-	// 	return
-	// }
+	niri, err := exec.LookPath("niri")
+	if err == nil && niri != "" {
+		runPrefix = "niri msg action spawn --"
+		slog.Info("config", "runprefix autodetect", runPrefix)
+		return
+	}
 
 	spid := os.Getenv("SYSTEMD_EXEC_PID")
 	if spid != "" {
