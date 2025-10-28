@@ -120,6 +120,17 @@ func (m *Menu) CreateLuaEntries() {
 					}
 				}
 
+				if state := item.RawGet(lua.LString("State")); state != lua.LNil {
+					if stateTable, ok := state.(*lua.LTable); ok {
+						entry.State = make([]string, 0)
+						stateTable.ForEach(func(key, value lua.LValue) {
+							if str, ok := value.(lua.LString); ok {
+								entry.State = append(entry.State, string(str))
+							}
+						})
+					}
+				}
+
 				entry.Identifier = entry.CreateIdentifier()
 				entry.Menu = m.Name
 
@@ -144,19 +155,11 @@ type Entry struct {
 	SubMenu  string            `toml:"submenu" desc:"submenu to open, if has prefix 'dmenu:' it'll launch that dmenu"`
 	Preview  string            `toml:"preview" desc:"filepath for the preview"`
 	Keywords []string          `toml:"keywords" desc:"searchable keywords"`
+	State    []string          `toml:"state" desc:"state of an item, can be used to f.e. mark it as current"`
 
 	Identifier string `toml:"-"`
 	Menu       string `toml:"-"`
 }
-
-// type LuaEntry struct {
-// 	Text    string
-// 	Preview string
-// 	Subtext string
-// 	Value   string
-// 	Icon    string
-// 	Menu    string
-// }
 
 func (e Entry) CreateIdentifier() string {
 	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s", e.Menu, e.Text, e.Value))

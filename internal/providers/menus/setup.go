@@ -272,6 +272,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 				Subtext:    sub,
 				Provider:   fmt.Sprintf("%s:%s", Name, me.Menu),
 				Icon:       icon,
+				State:      me.State,
 				Actions:    actions,
 				Type:       pb.QueryResponse_REGULAR,
 				Preview:    me.Preview,
