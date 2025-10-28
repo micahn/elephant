@@ -196,7 +196,7 @@ func Activate(identifier, action string, query string, args string) {
 			}()
 		}
 
-		if menu.History {
+		if menu != nil && menu.History {
 			h.Save(query, identifier)
 		}
 	}
