@@ -231,7 +231,7 @@ func cleanupImages() {
 	folder := filepath.Join(d, "elephant", "clipboardimages")
 
 	filepath.Walk(folder, func(path string, info fs.FileInfo, err error) error {
-		if !info.IsDir() {
+		if info != nil && !info.IsDir() {
 			os.Remove(path)
 		}
 
