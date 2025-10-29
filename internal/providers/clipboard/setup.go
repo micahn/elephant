@@ -292,7 +292,9 @@ func handleChangeText() {
 
 		if strings.TrimSpace(line) == "%STOPCLIPBOARD%" {
 			if len(lines) > 0 {
+				mu.Lock()
 				updateText(strings.Join(lines, "\n"))
+				mu.Unlock()
 			}
 			lines = lines[:0]
 		} else {
@@ -324,7 +326,20 @@ func handleChangeImage() {
 
 	for scanner.Scan() {
 		if !paused {
-			updateImage()
+			cmd := exec.Command("wl-paste", "-t", "image", "-n")
+
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				if strings.Contains(string(out), "Nothing is copied") {
+					continue
+				}
+
+				continue
+			}
+
+			mu.Lock()
+			updateImage(out)
+			mu.Unlock()
 		}
 	}
 }
@@ -339,13 +354,9 @@ func recopy(b []byte) {
 	cmd := exec.Command("wl-copy")
 	cmd.Stdin = bytes.NewReader(b)
 
-	err := cmd.Start()
+	err := cmd.Run()
 	if err != nil {
 		slog.Error(Name, "recopy", err)
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
 	}
 }
 
@@ -367,20 +378,7 @@ func handleSaveToFile() {
 	}
 }
 
-func updateImage() {
-	cmd := exec.Command("wl-paste", "-t", "image", "-n")
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		if strings.Contains(string(out), "Nothing is copied") {
-			return
-		}
-
-		slog.Error(Name, "error", err)
-
-		return
-	}
-
+func updateImage(out []byte) {
 	mt := getMimetypes()
 
 	// special treatment for gimp
@@ -399,7 +397,7 @@ func updateImage() {
 	if val, ok := clipboardhistory[md5str]; ok {
 		val.Time = time.Now()
 	} else {
-		cmd = exec.Command("identify", "-format", "%m", "-")
+		cmd := exec.Command("identify", "-format", "%m", "-")
 		cmd.Stdin = bytes.NewReader(out)
 
 		res, err := cmd.CombinedOutput()
@@ -431,11 +429,9 @@ func updateText(text string) {
 	}
 
 	if config.IgnoreSymbols {
-		mu.Lock()
 		if _, ok := symbols[text]; ok {
 			return
 		}
-		mu.Unlock()
 	}
 
 	mt := getMimetypes()
