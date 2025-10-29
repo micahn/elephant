@@ -288,10 +288,15 @@ func handleChangeText() {
 	var lines []string
 
 	for scanner.Scan() {
+
 		line := scanner.Text()
 
 		if strings.TrimSpace(line) == "%STOPCLIPBOARD%" {
 			if len(lines) > 0 {
+				if paused {
+					continue
+				}
+
 				mu.Lock()
 				updateText(strings.Join(lines, "\n"))
 				mu.Unlock()
