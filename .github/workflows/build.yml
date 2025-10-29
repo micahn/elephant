@@ -44,140 +44,79 @@ jobs:
         echo "Building elephant for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o build/elephant-linux-amd64 ./cmd/elephant/elephant.go
 
-    - name: Build elephant for linux/arm64
-      run: |
-        echo "Building elephant for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -o build/elephant-linux-arm64 ./cmd/elephant/elephant.go
-
     - name: Build desktopapplications plugin for linux/amd64
       run: |
         echo "Building desktopapplications plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/desktopapplications-linux-amd64.so ./internal/providers/desktopapplications
-
-    - name: Build desktopapplications plugin for linux/arm64
-      run: |
-        echo "Building desktopapplications plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/desktopapplications-linux-arm64.so ./internal/providers/desktopapplications
 
     - name: Build files plugin for linux/amd64
       run: |
         echo "Building files plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/files-linux-amd64.so ./internal/providers/files
 
-    - name: Build files plugin for linux/arm64
-      run: |
-        echo "Building files plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/files-linux-arm64.so ./internal/providers/files
 
     - name: Build clipboard plugin for linux/amd64
       run: |
         echo "Building clipboard plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/clipboard-linux-amd64.so ./internal/providers/clipboard
 
-    - name: Build clipboard plugin for linux/arm64
-      run: |
-        echo "Building clipboard plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/clipboard-linux-arm64.so ./internal/providers/clipboard
 
     - name: Build runner plugin for linux/amd64
       run: |
         echo "Building runner plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/runner-linux-amd64.so ./internal/providers/runner
 
-    - name: Build runner plugin for linux/arm64
-      run: |
-        echo "Building runner plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/runner-linux-arm64.so ./internal/providers/runner
 
     - name: Build symbols plugin for linux/amd64
       run: |
         echo "Building symbols plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/symbols-linux-amd64.so ./internal/providers/symbols
 
-    - name: Build symbols plugin for linux/arm64
-      run: |
-        echo "Building symbols plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/symbols-linux-arm64.so ./internal/providers/symbols
 
     - name: Build calc plugin for linux/amd64
       run: |
         echo "Building calc plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/calc-linux-amd64.so ./internal/providers/calc
 
-    - name: Build calc plugin for linux/arm64
-      run: |
-        echo "Building calc plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/calc-linux-arm64.so ./internal/providers/calc
 
     - name: Build providerlist plugin for linux/amd64
       run: |
         echo "Building providerlist plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/providerlist-linux-amd64.so ./internal/providers/providerlist
 
-    - name: Build providerlist plugin for linux/arm64
-      run: |
-        echo "Building providerlist plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/providerlist-linux-arm64.so ./internal/providers/providerlist
 
     - name: Build menus plugin for linux/amd64
       run: |
         echo "Building menus plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/menus-linux-amd64.so ./internal/providers/menus
 
-    - name: Build menus plugin for linux/arm64
-      run: |
-        echo "Building menus plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/menus-linux-arm64.so ./internal/providers/menus
 
     - name: Build websearch plugin for linux/amd64
       run: |
         echo "Building websearch plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/websearch-linux-amd64.so ./internal/providers/websearch
 
-    - name: Build websearch plugin for linux/arm64
-      run: |
-        echo "Building websearch plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/websearch-linux-arm64.so ./internal/providers/websearch
 
     - name: Build archlinuxpkgs plugin for linux/amd64
       run: |
         echo "Building archlinuxpkgs plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/archlinuxpkgs-linux-amd64.so ./internal/providers/archlinuxpkgs
 
-    - name: Build archlinuxpkgs plugin for linux/arm64
-      run: |
-        echo "Building archlinuxpkgs plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/archlinuxpkgs-linux-arm64.so ./internal/providers/archlinuxpkgs
 
     - name: Build todo plugin for linux/amd64
       run: |
         echo "Building todo plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/todo-linux-amd64.so ./internal/providers/todo
 
-    - name: Build todo plugin for linux/arm64
-      run: |
-        echo "Building todo plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/todo-linux-arm64.so ./internal/providers/todo
-
     - name: Build unicode plugin for linux/amd64
       run: |
         echo "Building unicode plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/unicode-linux-amd64.so ./internal/providers/unicode
 
-    - name: Build unicode plugin for linux/arm64
-      run: |
-        echo "Building unicode plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/unicode-linux-arm64.so ./internal/providers/unicode
-
     - name: Build bluetooth plugin for linux/amd64
       run: |
         echo "Building bluetooth plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/bluetooth-linux-amd64.so ./internal/providers/bluetooth
-
-    - name: Build bluetooth plugin for linux/arm64
-      run: |
-        echo "Building bluetooth plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/bluetooth-linux-arm64.so ./internal/providers/bluetooth
 
     - name: Build windows plugin for linux/amd64
       run: |
@@ -189,20 +128,10 @@ jobs:
         echo "Building snippets plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/snippets-linux-amd64.so ./internal/providers/snippets
 
-    - name: Build snippets plugin for linux/arm64
-      run: |
-        echo "Building snippets plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/snippets-linux-arm64.so ./internal/providers/snippets
-
     - name: Build nirisessions plugin for linux/amd64
       run: |
         echo "Building nirisessions plugin for linux/amd64..."
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -buildmode=plugin -o build/nirisessions-linux-amd64.so ./internal/providers/nirisessions
-
-    - name: Build nirisessions plugin for linux/arm64
-      run: |
-        echo "Building nirisessions plugin for linux/arm64..."
-        GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc go build -buildmode=plugin -o build/nirisessions-linux-arm64.so ./internal/providers/nirisessions
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -238,70 +167,54 @@ jobs:
 
         # Archive main elephant binaries
         tar -czf elephant-linux-amd64.tar.gz elephant-linux-amd64
-        tar -czf elephant-linux-arm64.tar.gz elephant-linux-arm64
 
         # Archive desktopapplications plugin
         tar -czf desktopapplications-linux-amd64.tar.gz desktopapplications-linux-amd64.so
-        tar -czf desktopapplications-linux-arm64.tar.gz desktopapplications-linux-arm64.so
 
         # Archive files plugin
         tar -czf files-linux-amd64.tar.gz files-linux-amd64.so
-        tar -czf files-linux-arm64.tar.gz files-linux-arm64.so
 
         # Archive clipboard plugin
         tar -czf clipboard-linux-amd64.tar.gz clipboard-linux-amd64.so
-        tar -czf clipboard-linux-arm64.tar.gz clipboard-linux-arm64.so
 
         # Archive runner plugin
         tar -czf runner-linux-amd64.tar.gz runner-linux-amd64.so
-        tar -czf runner-linux-arm64.tar.gz runner-linux-arm64.so
 
         # Archive symbols plugin
         tar -czf symbols-linux-amd64.tar.gz symbols-linux-amd64.so
-        tar -czf symbols-linux-arm64.tar.gz symbols-linux-arm64.so
 
         # Archive calc plugin
         tar -czf calc-linux-amd64.tar.gz calc-linux-amd64.so
-        tar -czf calc-linux-arm64.tar.gz calc-linux-arm64.so
 
         # Archive providerlist plugin
         tar -czf providerlist-linux-amd64.tar.gz providerlist-linux-amd64.so
-        tar -czf providerlist-linux-arm64.tar.gz providerlist-linux-arm64.so
 
         # Archive menus plugin
         tar -czf menus-linux-amd64.tar.gz menus-linux-amd64.so
-        tar -czf menus-linux-arm64.tar.gz menus-linux-arm64.so
 
         # Archive websearch plugin
         tar -czf websearch-linux-amd64.tar.gz websearch-linux-amd64.so
-        tar -czf websearch-linux-arm64.tar.gz websearch-linux-arm64.so
 
         # Archive archlinuxpkgs plugin
         tar -czf archlinuxpkgs-linux-amd64.tar.gz archlinuxpkgs-linux-amd64.so
-        tar -czf archlinuxpkgs-linux-arm64.tar.gz archlinuxpkgs-linux-arm64.so
 
         # Archive todo plugin
         tar -czf todo-linux-amd64.tar.gz todo-linux-amd64.so
-        tar -czf todo-linux-arm64.tar.gz todo-linux-arm64.so
 
         # Archive unicode plugin
         tar -czf unicode-linux-amd64.tar.gz unicode-linux-amd64.so
-        tar -czf unicode-linux-arm64.tar.gz unicode-linux-arm64.so
 
         # Archive bluetooth plugin
         tar -czf bluetooth-linux-amd64.tar.gz bluetooth-linux-amd64.so
-        tar -czf bluetooth-linux-arm64.tar.gz bluetooth-linux-arm64.so
 
         # Archive windows plugin
         tar -czf windows-linux-amd64.tar.gz windows-linux-amd64.so
 
         # Archive snippets plugin
         tar -czf snippets-linux-amd64.tar.gz snippets-linux-amd64.so
-        tar -czf snippets-linux-arm64.tar.gz snippets-linux-arm64.so
 
         # Archive nirisessions plugin
         tar -czf nirisessions-linux-amd64.tar.gz nirisessions-linux-amd64.so
-        tar -czf nirisessions-linux-arm64.tar.gz nirisessions-linux-arm64.so
 
         echo "Build completed successfully!"
         echo "Created archives:"

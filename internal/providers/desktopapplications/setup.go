@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
 )
@@ -44,9 +45,10 @@ type Config struct {
 	HistoryWhenEmpty        bool   `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
 	OnlySearchTitle         bool   `koanf:"only_search_title" desc:"ignore keywords, comments etc from desktop file when searching" default:"false"`
 
-	IconPlaceholder string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
-	Aliases         map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
-	Blacklist       []string          `koanf:"blacklist" desc:"blacklist desktop files from being parsed. Regexp." default:"<empty>"`
+	IconPlaceholder   string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
+	Aliases           map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
+	Blacklist         []string          `koanf:"blacklist" desc:"blacklist desktop files from being parsed. Regexp." default:"<empty>"`
+	WindowIntegration bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
 }
 
 func loadpinned() []string {
@@ -87,12 +89,19 @@ func Setup() {
 		HistoryWhenEmpty:        false,
 		IconPlaceholder:         "applications-other",
 		Aliases:                 map[string]string{},
+		WindowIntegration:       false,
 	}
 
 	common.LoadConfig(Name, config)
 
 	parseRegexp()
 	loadFiles()
+
+	if config.WindowIntegration {
+		if !windows.IsSetup {
+			windows.Init()
+		}
+	}
 
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
 }

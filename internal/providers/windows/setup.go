@@ -1,24 +1,17 @@
 // Package symbols provides symbols/emojis.
 package main
 
-/*
-#cgo LDFLAGS: -lwayland-client
-#include "window_manager.h"
-#include <stdlib.h>
-*/
-import "C"
-
 import (
 	"fmt"
 	"log/slog"
 	"net"
 	"strconv"
 	"time"
-	"unsafe"
 
 	_ "embed"
 
 	"github.com/abenz1267/elephant/v2/internal/util"
+	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
 )
@@ -38,95 +31,11 @@ type Config struct {
 
 var config *Config
 
-type Window struct {
-	ID    int
-	Title string
-	AppID string
-}
-
-func initWindowManager() error {
-	result := C.init_window_manager()
-	if result != 0 {
-		return fmt.Errorf("failed to initialize window manager")
-	}
-	return nil
-}
-
-func getWindowList() ([]Window, error) {
-	windowList := C.get_window_list()
-	if windowList == nil {
-		return nil, fmt.Errorf("failed to get window list - window manager may not be initialized or no Wayland compositor found")
-	}
-
-	count := int(windowList.count)
-	if count == 0 {
-		return []Window{}, nil
-	}
-
-	if windowList.windows == nil {
-		return nil, fmt.Errorf("window list array is null")
-	}
-
-	windows := make([]Window, count)
-
-	// Access the C array safely
-	windowArray := (*[1000]C.window_info_t)(unsafe.Pointer(windowList.windows))
-
-	for i := range count {
-		window := windowArray[i]
-
-		var title, appID string
-		if window.title != nil {
-			title = C.GoString(window.title)
-		}
-		if window.app_id != nil {
-			appID = C.GoString(window.app_id)
-		}
-
-		windows[i] = Window{
-			ID:    int(window.id),
-			Title: title,
-			AppID: appID,
-		}
-	}
-
-	return windows, nil
-}
-
-func focusWindow(windowID int) error {
-	result := C.focus_window(C.int(windowID))
-	switch result {
-	case 0:
-		return nil
-	case -1:
-		return fmt.Errorf("window with ID %d not found", windowID)
-	case -2:
-		return fmt.Errorf("no seat available for focusing (may need input device)")
-	default:
-		return fmt.Errorf("failed to focus window with ID %d (error %d)", windowID, int(result))
-	}
-}
-
 func Setup() {
 	start := time.Now()
 
-	isInit := false
-	count := 0
-
-	for !isInit {
-		if count > 10 {
-			slog.Error(Name, "setup", "couldn't init window manager")
-			return
-		}
-
-		if err := initWindowManager(); err != nil {
-			slog.Error(Name, "init", err)
-			slog.Info(Name, "setup", "retrying initWindowManager")
-			count++
-			time.Sleep(1 * time.Second)
-		} else {
-			isInit = true
-		}
+	if !windows.IsSetup {
+		windows.Init()
 	}
 
 	config = &Config{
@@ -157,7 +66,7 @@ func Activate(identifier, action string, query string, args string) {
 
 	i, _ := strconv.Atoi(identifier)
 
-	err := focusWindow(i)
+	err := windows.FocusWindow(i)
 	if err != nil {
 		slog.Error(Name, "activate", err)
 	}
@@ -168,7 +77,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 
 	entries := []*pb.QueryResponse_Item{}
 
-	windows, err := getWindowList()
+	windows, err := windows.GetWindowList()
 	if err != nil {
 		slog.Error(Name, "query", err)
 		return entries
@@ -217,7 +126,7 @@ func Icon() string {
 	return config.Icon
 }
 
-func calcScore(q string, d *Window, exact bool) (string, int32, []int32, int32, bool) {
+func calcScore(q string, d *windows.Window, exact bool) (string, int32, []int32, int32, bool) {
 	var scoreRes int32
 	var posRes []int32
 	var startRes int32

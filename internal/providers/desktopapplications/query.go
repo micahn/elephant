@@ -31,13 +31,19 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 
 		// check generic
 		if k == alias {
+			actions := []string{ActionStart}
+
+			if config.WindowIntegration {
+				actions = append(actions, ActionNewInstance)
+			}
+
 			entries = append(entries, &pb.QueryResponse_Item{
 				Identifier: k,
 				Text:       v.Name,
 				Type:       pb.QueryResponse_REGULAR,
 				Subtext:    v.GenericName,
 				Icon:       v.Icon,
-				Actions:    []string{ActionStart},
+				Actions:    actions,
 				Provider:   Name,
 				Score:      1_000_000,
 			})
@@ -82,6 +88,10 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			if score >= config.MinScore || query == "" {
 				state := []string{}
 				a := []string{ActionStart}
+
+				if config.WindowIntegration {
+					a = append(a, ActionNewInstance)
+				}
 
 				if usageScore != 0 {
 					state = append(state, "history")
@@ -135,6 +145,10 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 				identifier := fmt.Sprintf("%s:%s", k, a.Action)
 
 				actions := []string{ActionStart}
+
+				if config.WindowIntegration {
+					actions = append(actions, ActionNewInstance)
+				}
 
 				if identifier == alias {
 					entries = append(entries, &pb.QueryResponse_Item{

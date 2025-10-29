@@ -12,16 +12,18 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
 )
 
 const (
-	ActionPin     = "pin"
-	ActionPinUp   = "pinup"
-	ActionPinDown = "pindown"
-	ActionUnpin   = "unpin"
-	ActionStart   = "start"
+	ActionPin         = "pin"
+	ActionPinUp       = "pinup"
+	ActionPinDown     = "pindown"
+	ActionUnpin       = "unpin"
+	ActionStart       = "start"
+	ActionNewInstance = "new_instance"
 )
 
 func Activate(identifier, action string, query string, args string) {
@@ -36,7 +38,7 @@ func Activate(identifier, action string, query string, args string) {
 	case history.ActionDelete:
 		h.Remove(identifier)
 		return
-	case ActionStart:
+	case ActionStart, ActionNewInstance:
 		toRun := ""
 		prefix := common.LaunchPrefix(config.LaunchPrefix)
 
@@ -51,6 +53,24 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		} else {
 			toRun = files[parts[0]].Exec
+		}
+
+		if config.WindowIntegration && windows.IsSetup && action != ActionNewInstance {
+			w, err := windows.GetWindowList()
+			if err != nil {
+				slog.Error(Name, "windows", err)
+			} else {
+				for _, v := range w {
+					if v.AppID == files[parts[0]].StartupWMClass {
+						err := windows.FocusWindow(v.ID)
+						if err != nil {
+							slog.Error(Name, "windows", err)
+						} else {
+							return
+						}
+					}
+				}
+			}
 		}
 
 		if files[parts[0]].Terminal {
