@@ -34,11 +34,13 @@ func InitRunPrefix() {
 		}
 	}
 
-	niri, err := exec.LookPath("niri")
-	if err == nil && niri != "" {
-		runPrefix = "niri msg action spawn --"
-		slog.Info("config", "runprefix autodetect", runPrefix)
-		return
+	if os.Getenv("XDG_CURRENT_DESKTOP") == "niri" {
+		niri, err := exec.LookPath("niri")
+		if err == nil && niri != "" {
+			runPrefix = "niri msg action spawn --"
+			slog.Info("config", "runprefix autodetect", runPrefix)
+			return
+		}
 	}
 
 	spid := os.Getenv("SYSTEMD_EXEC_PID")
