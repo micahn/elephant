@@ -87,6 +87,10 @@ func Activate(identifier, action string, query string, args string) {
 			Setsid: true,
 		}
 
+		if config.WMIngegration {
+			go wmi.MoveToWorkspace(wmi.GetWorkspace(), files[parts[0]].StartupWMClass)
+		}
+
 		err := cmd.Start()
 		if err != nil {
 			slog.Error(Name, "activate", identifier, "error", err)

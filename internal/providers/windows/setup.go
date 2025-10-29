@@ -1,4 +1,4 @@
-// Package symbols provides symbols/emojis.
+// Package windows provides window focusing.
 package main
 
 import (
