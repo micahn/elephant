@@ -221,7 +221,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			continue
 		}
 
-		if v.IsLua && len(v.Entries) == 0 {
+		if v.IsLua && (len(v.Entries) == 0 || !v.Cache) {
 			v.CreateLuaEntries()
 		}
 
