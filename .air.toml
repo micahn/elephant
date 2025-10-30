@@ -5,7 +5,6 @@ tmp_dir = "tmp"
 # Just plain old shell command. You could use `make` as well.
 cmd = "cd cmd/elephant && go build -o /tmp/elephant-air ."
 pre_cmd = [
-  "cd cmd/elephant && go install",
   "cd internal/providers/files && go build -buildmode=plugin && cp files.so /home/andrej/.config/elephant/providers/",
   "cd internal/providers/desktopapplications && go build -buildmode=plugin && cp desktopapplications.so /home/andrej/.config/elephant/providers/",
   "cd internal/providers/clipboard && go build -buildmode=plugin && cp clipboard.so /home/andrej/.config/elephant/providers/",

@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 type Niri struct{}
@@ -44,7 +46,10 @@ type OpenedOrChangedEvent struct {
 }
 
 func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
-	cmd := exec.Command("niri", "msg", "-j", "event-stream")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "niri", "msg", "-j", "event-stream")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -58,34 +63,43 @@ func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
 	}
 
 	scanner := bufio.NewScanner(stdout)
+	done := make(chan bool, 1)
 
-	for scanner.Scan() {
-		var e OpenedOrChangedEvent
-		err := json.Unmarshal(scanner.Bytes(), &e)
-		if err != nil {
-			slog.Error(Name, "event unmarshal", err)
-		}
-
-		ws := c.GetWorkspace()
-
-		if ws != workspace && e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
-			cmd := exec.Command("niri", "msg", "action", "move-window-to-workspace", workspace, "--window-id", fmt.Sprintf("%d", e.WindowOpenedOrChanged.Window.ID), "--focus", "false")
-			out, err := cmd.CombinedOutput()
+	go func() {
+		defer func() { done <- true }()
+		for scanner.Scan() {
+			var e OpenedOrChangedEvent
+			err := json.Unmarshal(scanner.Bytes(), &e)
 			if err != nil {
-				slog.Error(Name, "nirimovetoworkspace", out)
+				slog.Error(Name, "event unmarshal", err)
+				continue
 			}
 
-			return
+			ws := c.GetWorkspace()
+
+			if ws != workspace && e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
+				cmd := exec.Command("niri", "msg", "action", "move-window-to-workspace", workspace, "--window-id", fmt.Sprintf("%d", e.WindowOpenedOrChanged.Window.ID), "--focus", "false")
+				out, err := cmd.CombinedOutput()
+				if err != nil {
+					slog.Error(Name, "nirimovetoworkspace", out)
+				}
+
+				return
+			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			slog.Error(Name, "monitor", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		cmd.Process.Kill()
+	case <-done:
 	}
 
-	if err := scanner.Err(); err != nil {
+	if err := cmd.Wait(); err != nil && ctx.Err() == nil {
 		slog.Error(Name, "monitor", err)
-		return
-	}
-
-	if err := cmd.Wait(); err != nil {
-		slog.Error(Name, "monitor", err)
-		return
 	}
 }
