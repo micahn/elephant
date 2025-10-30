@@ -103,8 +103,7 @@ func Setup() {
 
 	loadFromFile()
 
-	go handleChangeImage()
-	go handleChangeText()
+	go handleChange()
 	go handleSaveToFile()
 
 	if config.IgnoreSymbols {
@@ -265,88 +264,56 @@ func saveToFile() {
 	}
 }
 
-func handleChangeText() {
-	cmd := exec.Command("wl-paste", "--type", "text", "--watch", "sh", "-c", "cat; echo; echo '%STOPCLIPBOARD%'")
-
+func handleChange() {
+	cmd := exec.Command("wl-paste", "--watch", "echo", "clipboard-changed")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		slog.Error(Name, "load", err)
-		os.Exit(1)
+		log.Fatal("Error creating stdout pipe:", err)
 	}
 
-	err = cmd.Start()
-	if err != nil {
-		slog.Error(Name, "load", err)
-		os.Exit(1)
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
+	if err := cmd.Start(); err != nil {
+		log.Fatal("Error starting wl-paste watch:", err)
 	}
 
 	scanner := bufio.NewScanner(stdout)
-	var lines []string
 
 	for scanner.Scan() {
+		img, imgerr := getClipboardImage()
+		if imgerr == nil {
+			mu.Lock()
+			updateImage(img)
+			mu.Unlock()
+			continue
+		}
 
-		line := scanner.Text()
-
-		if strings.TrimSpace(line) == "%STOPCLIPBOARD%" {
-			if len(lines) > 0 {
-				if paused {
-					continue
-				}
-
-				mu.Lock()
-				updateText(strings.Join(lines, "\n"))
-				mu.Unlock()
-			}
-			lines = lines[:0]
-		} else {
-			lines = append(lines, line)
+		text, texterr := getClipboardText()
+		if texterr == nil {
+			mu.Lock()
+			updateText(text)
+			mu.Unlock()
+			continue
 		}
 	}
 }
 
-func handleChangeImage() {
-	cmd := exec.Command("wl-paste", "--type", "image", "--watch", "echo", "")
-
-	stdout, err := cmd.StdoutPipe()
+func getClipboardImage() ([]byte, error) {
+	cmd := exec.Command("wl-paste", "-t", "image", "-n")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error(Name, "load", err)
-		os.Exit(1)
+		slog.Debug(Name, "updateimg", string(out))
 	}
 
-	err = cmd.Start()
+	return out, err
+}
+
+func getClipboardText() (string, error) {
+	cmd := exec.Command("wl-paste", "-t", "text", "-n")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error(Name, "load", err)
-		os.Exit(1)
-	} else {
-		go func() {
-			cmd.Wait()
-		}()
+		slog.Debug(Name, "updateimg", string(out))
 	}
 
-	scanner := bufio.NewScanner(stdout)
-
-	for scanner.Scan() {
-		if !paused {
-			cmd := exec.Command("wl-paste", "-t", "image", "-n")
-
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				if strings.Contains(string(out), "Nothing is copied") {
-					continue
-				}
-
-				continue
-			}
-
-			mu.Lock()
-			updateImage(out)
-			mu.Unlock()
-		}
-	}
+	return string(out), err
 }
 
 var ignoreMimetypes = []string{"x-kde-passwordManagerHint", "text/uri-list"}
