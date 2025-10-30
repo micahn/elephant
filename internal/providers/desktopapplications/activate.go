@@ -55,7 +55,7 @@ func Activate(identifier, action string, query string, args string) {
 			toRun = files[parts[0]].Exec
 		}
 
-		if config.WindowIntegration && windows.IsSetup && action != ActionNewInstance {
+		if files[parts[0]].StartupWMClass != "" && config.WindowIntegration && windows.IsSetup && action != ActionNewInstance {
 			w, err := windows.GetWindowList()
 			if err != nil {
 				slog.Error(Name, "windows", err)
