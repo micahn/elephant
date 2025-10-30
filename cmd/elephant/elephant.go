@@ -26,25 +26,6 @@ import (
 var version string
 
 func main() {
-	var config string
-	var debug bool
-
-	common.LoadGlobalConfig()
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGKILL,
-		syscall.SIGQUIT, syscall.SIGUSR1)
-
-	go func() {
-		<-signalChan
-		os.Remove(comm.Socket)
-		os.Exit(0)
-	}()
-
 	cmd := &cli.Command{
 		Name:                   "Elephant",
 		Usage:                  "Data provider and executor",
@@ -216,27 +197,41 @@ WantedBy=graphical-session.target
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "config",
-				Aliases:     []string{"c"},
-				Value:       "",
-				Destination: &config,
-				Usage:       "config folder location",
+				Name:    "config",
+				Aliases: []string{"c"},
+				Value:   "",
+				Usage:   "config folder location",
 				Action: func(ctx context.Context, cmd *cli.Command, val string) error {
 					common.SetExplicitDir(val)
 					return nil
 				},
 			},
 			&cli.BoolFlag{
-				Name:        "debug",
-				Aliases:     []string{"d"},
-				Usage:       "enable debug logging",
-				Destination: &debug,
+				Name:    "debug",
+				Aliases: []string{"d"},
+				Usage:   "enable debug logging",
 			},
 		},
-		Action: func(context.Context, *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			start := time.Now()
 
-			if debug {
+			common.LoadGlobalConfig()
+
+			signalChan := make(chan os.Signal, 1)
+			signal.Notify(signalChan,
+				syscall.SIGHUP,
+				syscall.SIGINT,
+				syscall.SIGTERM,
+				syscall.SIGKILL,
+				syscall.SIGQUIT, syscall.SIGUSR1)
+
+			go func() {
+				<-signalChan
+				os.Remove(comm.Socket)
+				os.Exit(0)
+			}()
+
+			if cmd.Bool("debug") {
 				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
 				}))
