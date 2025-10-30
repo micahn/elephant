@@ -647,6 +647,9 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 		if v.Img != "" {
 			e.Preview = v.Img
 			e.PreviewType = util.PreviewTypeFile
+		} else {
+			e.Preview = v.Content
+			e.PreviewType = util.PreviewTypeText
 		}
 
 		if query != "" {
