@@ -44,10 +44,13 @@ func Activate(identifier, action string, query string, args string) {
 
 		parts := strings.Split(identifier, ":")
 
+		isAction := false
+
 		if len(parts) == 2 {
 			for _, v := range files[parts[0]].Actions {
 				if v.Action == parts[1] {
 					toRun = v.Exec
+					isAction = true
 					break
 				}
 			}
@@ -56,17 +59,19 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if files[parts[0]].StartupWMClass != "" && config.WindowIntegration && windows.IsSetup && action != ActionNewInstance {
-			w, err := windows.GetWindowList()
-			if err != nil {
-				slog.Error(Name, "windows", err)
-			} else {
-				for _, v := range w {
-					if v.AppID == files[parts[0]].StartupWMClass {
-						err := windows.FocusWindow(v.ID)
-						if err != nil {
-							slog.Error(Name, "windows", err)
-						} else {
-							return
+			if !isAction || !config.WindowIntegrationIgnoreActions {
+				w, err := windows.GetWindowList()
+				if err != nil {
+					slog.Error(Name, "windows", err)
+				} else {
+					for _, v := range w {
+						if v.AppID == files[parts[0]].StartupWMClass {
+							err := windows.FocusWindow(v.ID)
+							if err != nil {
+								slog.Error(Name, "windows", err)
+							} else {
+								return
+							}
 						}
 					}
 				}

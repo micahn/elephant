@@ -40,21 +40,22 @@ type WMIntegration interface {
 var readme string
 
 type Config struct {
-	common.Config           `koanf:",squash"`
-	LaunchPrefix            string            `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
-	Locale                  string            `koanf:"locale" desc:"to override systems locale" default:""`
-	ActionMinScore          int               `koanf:"action_min_score" desc:"min score for actions to be shown" default:"20"`
-	ShowActions             bool              `koanf:"show_actions" desc:"include application actions, f.e. 'New Private Window' for Firefox" default:"false"`
-	ShowGeneric             bool              `koanf:"show_generic" desc:"include generic info when show_actions is true" default:"true"`
-	ShowActionsWithoutQuery bool              `koanf:"show_actions_without_query" desc:"show application actions, if the search query is empty" default:"false"`
-	History                 bool              `koanf:"history" desc:"make use of history for sorting" default:"true"`
-	HistoryWhenEmpty        bool              `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
-	OnlySearchTitle         bool              `koanf:"only_search_title" desc:"ignore keywords, comments etc from desktop file when searching" default:"false"`
-	IconPlaceholder         string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
-	Aliases                 map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
-	Blacklist               []string          `koanf:"blacklist" desc:"blacklist desktop files from being parsed. Regexp." default:"<empty>"`
-	WindowIntegration       bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
-	WMIntegration           bool              `koanf:"wm_integration" desc:"Moves apps to the workspace where they were launched at automatically. Currently Niri only." default:"false"`
+	common.Config                  `koanf:",squash"`
+	LaunchPrefix                   string            `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
+	Locale                         string            `koanf:"locale" desc:"to override systems locale" default:""`
+	ActionMinScore                 int               `koanf:"action_min_score" desc:"min score for actions to be shown" default:"20"`
+	ShowActions                    bool              `koanf:"show_actions" desc:"include application actions, f.e. 'New Private Window' for Firefox" default:"false"`
+	ShowGeneric                    bool              `koanf:"show_generic" desc:"include generic info when show_actions is true" default:"true"`
+	ShowActionsWithoutQuery        bool              `koanf:"show_actions_without_query" desc:"show application actions, if the search query is empty" default:"false"`
+	History                        bool              `koanf:"history" desc:"make use of history for sorting" default:"true"`
+	HistoryWhenEmpty               bool              `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
+	OnlySearchTitle                bool              `koanf:"only_search_title" desc:"ignore keywords, comments etc from desktop file when searching" default:"false"`
+	IconPlaceholder                string            `koanf:"icon_placeholder" desc:"placeholder icon for apps without icon" default:"applications-other"`
+	Aliases                        map[string]string `koanf:"aliases" desc:"setup aliases for applications. Matched aliases will always be placed on top of the list. Example: 'ffp' => '<identifier>'. Check elephant log output when activating an item to get its identifier." default:""`
+	Blacklist                      []string          `koanf:"blacklist" desc:"blacklist desktop files from being parsed. Regexp." default:"<empty>"`
+	WindowIntegration              bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
+	WindowIntegrationIgnoreActions bool              `koanf:"window_integration_ignore_actions" desc:"will ignore the window integration for actions" default:"true"`
+	WMIntegration                  bool              `koanf:"wm_integration" desc:"Moves apps to the workspace where they were launched at automatically. Currently Niri only." default:"false"`
 }
 
 func loadpinned() []string {
