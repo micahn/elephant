@@ -38,6 +38,7 @@ type Config struct {
 	HistoryWhenEmpty        bool     `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
 	EnginesAsActions        bool     `koanf:"engines_as_actions" desc:"run engines as actions" default:"true"`
 	TextPrefix              string   `koanf:"text_prefix" desc:"prefix for the entry text" default:"Search: "`
+	Command                 string   `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"xdg-open"`
 }
 
 type Engine struct {
@@ -59,6 +60,7 @@ func Setup() {
 		HistoryWhenEmpty:        false,
 		EnginesAsActions:        false,
 		TextPrefix:              "Search: ",
+		Command:                 "xdg-open",
 	}
 
 	common.LoadConfig(Name, config)
@@ -173,9 +175,7 @@ func Activate(identifier, action string, query string, args string) {
 }
 
 func run(query, identifier, q string) {
-	prefix := common.LaunchPrefix("")
-
-	cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", prefix, q)))
+	cmd := exec.Command("sh", "-c", strings.TrimSpace(fmt.Sprintf("%s %s '%s'", common.LaunchPrefix(""), config.Command, q)))
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true,
