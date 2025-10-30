@@ -174,6 +174,7 @@ function GetEntries()
                         down = "notify-send down",
                     },
                     -- Preview = line,
+                    -- PreviewType = "file",
                     -- Icon = line
                 })
             end

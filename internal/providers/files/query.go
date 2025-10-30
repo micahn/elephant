@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
 )
 
@@ -18,13 +19,15 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 
 	for _, v := range results {
 		entries = append(entries, &pb.QueryResponse_Item{
-			Identifier: v.f.Identifier,
-			Text:       v.f.Path,
-			Type:       pb.QueryResponse_REGULAR,
-			Subtext:    "",
-			Provider:   Name,
-			Actions:    actions,
-			Score:      v.score,
+			Identifier:  v.f.Identifier,
+			Text:        v.f.Path,
+			Preview:     v.f.Path,
+			PreviewType: util.PreviewTypeFile,
+			Type:        pb.QueryResponse_REGULAR,
+			Subtext:     "",
+			Provider:    Name,
+			Actions:     actions,
+			Score:       v.score,
 			Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 				Start:     v.start,
 				Field:     "text",

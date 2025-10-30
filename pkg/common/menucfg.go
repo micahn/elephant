@@ -95,6 +95,10 @@ func (m *Menu) CreateLuaEntries() {
 					entry.Preview = string(preview.(lua.LString))
 				}
 
+				if preview := item.RawGetString("PreviewType"); preview != lua.LNil {
+					entry.PreviewType = string(preview.(lua.LString))
+				}
+
 				if subtext := item.RawGetString("Subtext"); subtext != lua.LNil {
 					entry.Subtext = string(subtext.(lua.LString))
 				}
@@ -134,6 +138,10 @@ func (m *Menu) CreateLuaEntries() {
 				entry.Identifier = entry.CreateIdentifier()
 				entry.Menu = m.Name
 
+				if entry.Preview != "" && entry.PreviewType == "" {
+					entry.PreviewType = "file"
+				}
+
 				res = append(res, entry)
 			}
 		})
@@ -145,17 +153,18 @@ func (m *Menu) CreateLuaEntries() {
 }
 
 type Entry struct {
-	Text     string            `toml:"text" desc:"text for entry"`
-	Async    string            `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
-	Subtext  string            `toml:"subtext" desc:"sub text for entry"`
-	Value    string            `toml:"value" desc:"value to be used for the action."`
-	Actions  map[string]string `toml:"actions" desc:"actions items can use"`
-	Terminal bool              `toml:"terminal" desc:"runs action in terminal if true"`
-	Icon     string            `toml:"icon" desc:"icon for entry"`
-	SubMenu  string            `toml:"submenu" desc:"submenu to open, if has prefix 'dmenu:' it'll launch that dmenu"`
-	Preview  string            `toml:"preview" desc:"filepath for the preview"`
-	Keywords []string          `toml:"keywords" desc:"searchable keywords"`
-	State    []string          `toml:"state" desc:"state of an item, can be used to f.e. mark it as current"`
+	Text        string            `toml:"text" desc:"text for entry"`
+	Async       string            `toml:"async" desc:"if the text should be updated asynchronously based on the action"`
+	Subtext     string            `toml:"subtext" desc:"sub text for entry"`
+	Value       string            `toml:"value" desc:"value to be used for the action."`
+	Actions     map[string]string `toml:"actions" desc:"actions items can use"`
+	Terminal    bool              `toml:"terminal" desc:"runs action in terminal if true"`
+	Icon        string            `toml:"icon" desc:"icon for entry"`
+	SubMenu     string            `toml:"submenu" desc:"submenu to open, if has prefix 'dmenu:' it'll launch that dmenu"`
+	Preview     string            `toml:"preview" desc:"filepath for the preview"`
+	PreviewType string            `toml:"preview_type" desc:"type of the preview: text, file [default], command"`
+	Keywords    []string          `toml:"keywords" desc:"searchable keywords"`
+	State       []string          `toml:"state" desc:"state of an item, can be used to f.e. mark it as current"`
 
 	Identifier string `toml:"-"`
 	Menu       string `toml:"-"`

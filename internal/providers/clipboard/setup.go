@@ -638,11 +638,15 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 		e := &pb.QueryResponse_Item{
 			Identifier: k,
 			Text:       v.Content,
-			Icon:       v.Img,
 			Subtext:    v.Time.Format(time.RFC1123Z),
 			Type:       pb.QueryResponse_REGULAR,
 			Actions:    []string{ActionCopy, ActionEdit, ActionRemove},
 			Provider:   Name,
+		}
+
+		if v.Img != "" {
+			e.Preview = v.Img
+			e.PreviewType = util.PreviewTypeFile
 		}
 
 		if query != "" {

@@ -207,8 +207,9 @@ type QueryResponse_Item struct {
 	Type          QueryResponse_Type            `protobuf:"varint,8,opt,name=type,proto3,enum=pb.QueryResponse_Type" json:"type,omitempty"`
 	Mimetype      string                        `protobuf:"bytes,9,opt,name=mimetype,proto3" json:"mimetype,omitempty"`
 	Preview       string                        `protobuf:"bytes,10,opt,name=preview,proto3" json:"preview,omitempty"`
-	State         []string                      `protobuf:"bytes,11,rep,name=state,proto3" json:"state,omitempty"`
-	Actions       []string                      `protobuf:"bytes,12,rep,name=actions,proto3" json:"actions,omitempty"`
+	PreviewType   string                        `protobuf:"bytes,11,opt,name=preview_type,json=previewType,proto3" json:"preview_type,omitempty"`
+	State         []string                      `protobuf:"bytes,12,rep,name=state,proto3" json:"state,omitempty"`
+	Actions       []string                      `protobuf:"bytes,13,rep,name=actions,proto3" json:"actions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,6 +314,13 @@ func (x *QueryResponse_Item) GetPreview() string {
 	return ""
 }
 
+func (x *QueryResponse_Item) GetPreviewType() string {
+	if x != nil {
+		return x.PreviewType
+	}
+	return ""
+}
+
 func (x *QueryResponse_Item) GetState() []string {
 	if x != nil {
 		return x.State
@@ -398,11 +406,11 @@ const file_query_proto_rawDesc = "" +
 	"\n" +
 	"maxresults\x18\x03 \x01(\x05R\n" +
 	"maxresults\x12 \n" +
-	"\vexactsearch\x18\x04 \x01(\bR\vexactsearch\"\xc8\x04\n" +
+	"\vexactsearch\x18\x04 \x01(\bR\vexactsearch\"\xeb\x04\n" +
 	"\rQueryResponse\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12*\n" +
 	"\x04item\x18\x02 \x01(\v2\x16.pb.QueryResponse.ItemR\x04item\x12\x10\n" +
-	"\x03qid\x18\x03 \x01(\x05R\x03qid\x1a\xc3\x03\n" +
+	"\x03qid\x18\x03 \x01(\x05R\x03qid\x1a\xe6\x03\n" +
 	"\x04Item\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x01 \x01(\tR\n" +
@@ -416,9 +424,10 @@ const file_query_proto_rawDesc = "" +
 	"\x04type\x18\b \x01(\x0e2\x16.pb.QueryResponse.TypeR\x04type\x12\x1a\n" +
 	"\bmimetype\x18\t \x01(\tR\bmimetype\x12\x18\n" +
 	"\apreview\x18\n" +
-	" \x01(\tR\apreview\x12\x14\n" +
-	"\x05state\x18\v \x03(\tR\x05state\x12\x18\n" +
-	"\aactions\x18\f \x03(\tR\aactions\x1aU\n" +
+	" \x01(\tR\apreview\x12!\n" +
+	"\fpreview_type\x18\v \x01(\tR\vpreviewType\x12\x14\n" +
+	"\x05state\x18\f \x03(\tR\x05state\x12\x18\n" +
+	"\aactions\x18\r \x03(\tR\aactions\x1aU\n" +
 	"\tFuzzyInfo\x12\x14\n" +
 	"\x05start\x18\x01 \x01(\x05R\x05start\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12\x1c\n" +
