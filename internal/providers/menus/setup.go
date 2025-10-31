@@ -128,11 +128,13 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if after, ok := strings.CutPrefix(run, "lua:"); ok {
-			if menu != nil && menu.LuaState != nil {
+			state := common.NewLuaState(menu.Name, menu.LuaString)
+
+			if menu != nil && state != nil {
 				functionName := after
 
-				if err := menu.LuaState.CallByParam(lua.P{
-					Fn:      menu.LuaState.GetGlobal(functionName),
+				if err := state.CallByParam(lua.P{
+					Fn:      state.GetGlobal(functionName),
 					NRet:    0,
 					Protect: true,
 				}, lua.LString(e.Value), lua.LString(args)); err != nil {

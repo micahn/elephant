@@ -40,36 +40,37 @@ type Menu struct {
 	Parent               string            `toml:"parent" desc:"defines the parent menu" default:""`
 
 	// internal
-	luaString string
-	IsLua     bool        `toml:"-"`
-	LuaState  *lua.LState `toml:"-"`
+	LuaString string
+	IsLua     bool `toml:"-"`
 }
 
-func (m *Menu) newLuaState() {
+func NewLuaState(name, data string) *lua.LState {
 	l := lua.NewState()
 
-	if err := l.DoString(m.luaString); err != nil {
-		slog.Error(m.Name, "newLuaState", err)
+	if err := l.DoString(data); err != nil {
+		slog.Error(name, "newLuaState", err)
 		l.Close()
-		return
+		return nil
 	}
 
 	if l == nil {
-		slog.Error(m.Name, "newLuaState", "lua state is nil")
-		return
+		slog.Error(name, "newLuaState", "lua state is nil")
+		return nil
 	}
 
-	m.LuaState = l
+	return l
 }
 
 func (m *Menu) CreateLuaEntries() {
-	if m.LuaState == nil {
+	state := NewLuaState(m.Name, m.LuaString)
+
+	if state == nil {
 		slog.Error(m.Name, "CreateLuaEntries", "no lua state")
 		return
 	}
 
-	if err := m.LuaState.CallByParam(lua.P{
-		Fn:      m.LuaState.GetGlobal("GetEntries"),
+	if err := state.CallByParam(lua.P{
+		Fn:      state.GetGlobal("GetEntries"),
 		NRet:    1,
 		Protect: true,
 	}); err != nil {
@@ -79,8 +80,8 @@ func (m *Menu) CreateLuaEntries() {
 
 	res := []Entry{}
 
-	ret := m.LuaState.Get(-1)
-	m.LuaState.Pop(1)
+	ret := state.Get(-1)
+	state.Pop(1)
 
 	if table, ok := ret.(*lua.LTable); ok {
 		table.ForEach(func(key, value lua.LValue) {
@@ -148,8 +149,6 @@ func (m *Menu) CreateLuaEntries() {
 	}
 
 	m.Entries = res
-
-	go m.newLuaState()
 }
 
 type Entry struct {
@@ -239,35 +238,35 @@ func createLuaMenu(path string) {
 		return
 	}
 
-	m.luaString = string(b)
+	m.LuaString = string(b)
 
-	m.newLuaState()
+	state := NewLuaState("", string(b))
 
-	if val := m.LuaState.GetGlobal("Name"); val != lua.LNil {
+	if val := state.GetGlobal("Name"); val != lua.LNil {
 		m.Name = string(val.(lua.LString))
 	}
 
-	if val := m.LuaState.GetGlobal("NamePretty"); val != lua.LNil {
+	if val := state.GetGlobal("NamePretty"); val != lua.LNil {
 		m.NamePretty = string(val.(lua.LString))
 	}
 
-	if val := m.LuaState.GetGlobal("HideFromProviderlist"); val != lua.LNil {
+	if val := state.GetGlobal("HideFromProviderlist"); val != lua.LNil {
 		m.HideFromProviderlist = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("Description"); val != lua.LNil {
+	if val := state.GetGlobal("Description"); val != lua.LNil {
 		m.Description = string(val.(lua.LString))
 	}
 
-	if val := m.LuaState.GetGlobal("Icon"); val != lua.LNil {
+	if val := state.GetGlobal("Icon"); val != lua.LNil {
 		m.Icon = string(val.(lua.LString))
 	}
 
-	if val := m.LuaState.GetGlobal("Action"); val != lua.LNil {
+	if val := state.GetGlobal("Action"); val != lua.LNil {
 		m.Action = string(val.(lua.LString))
 	}
 
-	if val := m.LuaState.GetGlobal("Actions"); val != lua.LNil {
+	if val := state.GetGlobal("Actions"); val != lua.LNil {
 		if table, ok := val.(*lua.LTable); ok {
 			m.Actions = make(map[string]string)
 			table.ForEach(func(key, value lua.LValue) {
@@ -280,19 +279,19 @@ func createLuaMenu(path string) {
 		}
 	}
 
-	if val := m.LuaState.GetGlobal("SearchName"); val != lua.LNil {
+	if val := state.GetGlobal("SearchName"); val != lua.LNil {
 		m.SearchName = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("Cache"); val != lua.LNil {
+	if val := state.GetGlobal("Cache"); val != lua.LNil {
 		m.Cache = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("Terminal"); val != lua.LNil {
+	if val := state.GetGlobal("Terminal"); val != lua.LNil {
 		m.Terminal = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("Keywords"); val != lua.LNil {
+	if val := state.GetGlobal("Keywords"); val != lua.LNil {
 		if table, ok := val.(*lua.LTable); ok {
 			m.Keywords = make([]string, 0)
 			table.ForEach(func(key, value lua.LValue) {
@@ -303,23 +302,23 @@ func createLuaMenu(path string) {
 		}
 	}
 
-	if val := m.LuaState.GetGlobal("FixedOrder"); val != lua.LNil {
+	if val := state.GetGlobal("FixedOrder"); val != lua.LNil {
 		m.FixedOrder = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("History"); val != lua.LNil {
+	if val := state.GetGlobal("History"); val != lua.LNil {
 		m.History = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("HistoryWhenEmpty"); val != lua.LNil {
+	if val := state.GetGlobal("HistoryWhenEmpty"); val != lua.LNil {
 		m.HistoryWhenEmpty = bool(val.(lua.LBool))
 	}
 
-	if val := m.LuaState.GetGlobal("MinScore"); val != lua.LNil {
+	if val := state.GetGlobal("MinScore"); val != lua.LNil {
 		m.MinScore = int32(val.(lua.LNumber))
 	}
 
-	if val := m.LuaState.GetGlobal("Parent"); val != lua.LNil {
+	if val := state.GetGlobal("Parent"); val != lua.LNil {
 		m.Parent = string(val.(lua.LString))
 	}
 
