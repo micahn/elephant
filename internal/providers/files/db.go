@@ -104,17 +104,8 @@ func getFile(identifier string) *File {
 	return &f
 }
 
-type Result struct {
-	f         File
-	positions []int32
-	start     int32
-	score     int32
-}
-
-func getFilesByQuery(query string, _ bool) []Result {
-	start := time.Now()
-
-	var result []Result
+func getFilesByQuery(query string, _ bool) []File {
+	var result []File
 
 	path := common.CacheFile("files.db")
 	queryDB, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_synchronous=NORMAL&_cache_size=10000&_temp_store=memory")
@@ -151,11 +142,7 @@ func getFilesByQuery(query string, _ bool) []Result {
 			f.Changed = time.Unix(changedUnix, 0)
 		}
 
-		score := calcScore(f.Changed, start)
-		result = append(result, Result{
-			score: score,
-			f:     f,
-		})
+		result = append(result, f)
 	}
 
 	return result
