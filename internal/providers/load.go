@@ -33,6 +33,7 @@ var (
 
 func Load(setup bool) {
 	common.LoadMenus()
+	ignored := common.GetElephantConfig().IgnoredProviders
 
 	var mut sync.Mutex
 	have := []string{}
@@ -70,6 +71,13 @@ func Load(setup bool) {
 				name, err := p.Lookup("Name")
 				if err != nil {
 					slog.Error("providers", "load", err, "provider", path)
+				}
+
+				if slices.Contains(ignored, *name.(*string)) {
+					mut.Lock()
+					have = append(have, filepath.Base(path))
+					mut.Unlock()
+					return nil
 				}
 
 				namePretty, err := p.Lookup("NamePretty")

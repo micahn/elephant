@@ -20,8 +20,9 @@ type Config struct {
 }
 
 type ElephantConfig struct {
-	AutoDetectLaunchPrefix bool `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
-	OverloadLocalEnv       bool `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
+	AutoDetectLaunchPrefix bool     `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
+	OverloadLocalEnv       bool     `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
+	IgnoredProviders       []string `koanf:"ignored_providers" desc:"providers to ignore" default:"<empty>"`
 }
 
 var elephantConfig *ElephantConfig
