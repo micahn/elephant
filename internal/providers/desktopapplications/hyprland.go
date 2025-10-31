@@ -82,5 +82,6 @@ func (c Hyprland) MoveToWorkspace(workspace, initialWMClass string) {
 	case <-ctx.Done():
 		conn.Close()
 	case <-done:
+		conn.Close()
 	}
 }

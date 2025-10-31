@@ -67,17 +67,21 @@ func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
 
 	go func() {
 		defer func() { done <- true }()
+
 		for scanner.Scan() {
 			var e OpenedOrChangedEvent
+
 			err := json.Unmarshal(scanner.Bytes(), &e)
 			if err != nil {
 				slog.Error(Name, "event unmarshal", err)
 				continue
 			}
 
-			ws := c.GetWorkspace()
+			if e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
+				if c.GetWorkspace() == workspace {
+					return
+				}
 
-			if ws != workspace && e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
 				cmd := exec.Command("niri", "msg", "action", "move-window-to-workspace", workspace, "--window-id", fmt.Sprintf("%d", e.WindowOpenedOrChanged.Window.ID), "--focus", "false")
 				out, err := cmd.CombinedOutput()
 				if err != nil {
@@ -97,9 +101,8 @@ func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
 	case <-ctx.Done():
 		cmd.Process.Kill()
 	case <-done:
+		cmd.Process.Kill()
 	}
 
-	if err := cmd.Wait(); err != nil && ctx.Err() == nil {
-		slog.Error(Name, "monitor", err)
-	}
+	cmd.Wait()
 }
