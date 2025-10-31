@@ -117,6 +117,8 @@ WantedBy=graphical-session.target
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
+					common.LoadGlobalConfig()
+
 					providers.Load(false)
 
 					for _, v := range providers.Providers {
