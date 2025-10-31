@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
-	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"net"
@@ -83,25 +81,41 @@ type Item struct {
 	Notified  bool
 }
 
+func (i Item) toCSVRow() string {
+	sched := i.Scheduled.Format(time.RFC1123Z)
+	star := i.Scheduled.Format(time.RFC1123Z)
+	fin := i.Scheduled.Format(time.RFC1123Z)
+
+	return fmt.Sprintf("%s;%s;%s;%s;%t;%s;%s;%s", i.Category, i.Text, i.State, i.Urgency, i.Notified, sched, star, fin)
+}
+
 func saveItems() {
-	var b bytes.Buffer
-	encoder := gob.NewEncoder(&b)
+	f := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
-	err := encoder.Encode(items)
+	err := os.MkdirAll(filepath.Dir(f), 0o755)
 	if err != nil {
-		slog.Error(Name, "saveencode", err)
+		slog.Error(Name, "mkdirall", err)
 		return
 	}
 
-	err = os.MkdirAll(filepath.Dir(common.CacheFile(fmt.Sprintf("%s.gob", Name))), 0o755)
+	os.Remove(f)
+
+	file, err := os.Create(f)
 	if err != nil {
-		slog.Error(Name, "savedir", err)
-		return
+		slog.Error(Name, "createfile", err)
+	}
+	defer file.Close()
+
+	c := []string{"category;text;state;urgency;notified;scheduled;start;finish"}
+
+	for _, v := range items {
+		c = append(c, v.toCSVRow())
 	}
 
-	err = os.WriteFile(common.CacheFile(fmt.Sprintf("%s.gob", Name)), b.Bytes(), 0o600)
+	content := strings.Join(c, "\n")
+	_, err = file.WriteString(content)
 	if err != nil {
-		slog.Error(Name, "savewrite", err)
+		slog.Error(Name, "writefile", err)
 	}
 }
 
@@ -172,6 +186,8 @@ func (i *Item) fromQuery(query string) {
 	} else {
 		i.Text = query
 	}
+
+	i.Text = strings.TrimSpace(i.Text)
 }
 
 func Setup() {
@@ -326,18 +342,52 @@ func store(query string) {
 }
 
 func loadItems() {
-	file := common.CacheFile(fmt.Sprintf("%s.gob", Name))
+	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
 	if common.FileExists(file) {
 		f, err := os.ReadFile(file)
 		if err != nil {
 			slog.Error(Name, "itemsread", err)
 		} else {
-			decoder := gob.NewDecoder(bytes.NewReader(f))
+			first := false
 
-			err = decoder.Decode(&items)
-			if err != nil {
-				slog.Error(Name, "decoding", err)
+			for l := range strings.Lines(string(f)) {
+				if !first {
+					first = true
+					continue
+				}
+
+				d := strings.Split(l, ";")
+
+				i := Item{}
+				i.Category = d[0]
+				i.Text = d[1]
+				i.State = d[2]
+				i.Urgency = d[3]
+				i.Notified = d[4] == "true"
+
+				t, err := time.Parse(time.RFC1123Z, d[5])
+				if err != nil {
+					slog.Error(Name, "timeparse", err, "field", "scheduled")
+				} else {
+					i.Scheduled = t
+				}
+
+				t, _ = time.Parse(time.RFC1123Z, d[6])
+				if err != nil {
+					slog.Error(Name, "timeparse", err, "field", "started")
+				} else {
+					i.Started = t
+				}
+
+				t, _ = time.Parse(time.RFC1123Z, d[7])
+				if err != nil {
+					slog.Error(Name, "timeparse", err, "field", "finished")
+				} else {
+					i.Finished = t
+				}
+
+				items = append(items, i)
 			}
 		}
 	}
