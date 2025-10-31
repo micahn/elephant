@@ -153,6 +153,8 @@ WantedBy=graphical-session.target
 				Aliases: []string{"d"},
 				Usage:   "generates a markdown documentation",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					common.LoadGlobalConfig()
+
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
