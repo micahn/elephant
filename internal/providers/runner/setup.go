@@ -143,16 +143,11 @@ func Activate(identifier, action string, query string, args string) {
 		h.Remove(identifier)
 		return
 	case ActionRunInTerminal, ActionRun:
-
 		bin := ""
 
 		if identifier == "generic" {
 			split := strings.SplitN(query, " ", 2)
 			bin = split[0]
-
-			if len(split) > 1 {
-				args = split[1]
-			}
 		} else {
 			for _, v := range items {
 				if v.Identifier == identifier {
