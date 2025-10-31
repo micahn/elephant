@@ -3,9 +3,14 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	_ "embed"
@@ -14,11 +19,18 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	"github.com/adrg/xdg"
+	"github.com/charlievieth/fastwalk"
 )
 
 var (
 	Name       = "windows"
 	NamePretty = "Windows"
+)
+
+var (
+	icons = make(map[string]string)
+	mu    sync.RWMutex
 )
 
 //go:embed README.md
@@ -47,6 +59,8 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	findIcons()
 
 	slog.Info(Name, "loaded", time.Since(start))
 }
@@ -92,6 +106,12 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 			Provider:   Name,
 			Icon:       config.Icon,
 		}
+
+		mu.RLock()
+		if val, ok := icons[window.AppID]; ok {
+			e.Icon = val
+		}
+		mu.RUnlock()
 
 		if query != "" {
 			matched, score, pos, start, ok := calcScore(query, &window, exact)
@@ -154,4 +174,68 @@ func calcScore(q string, d *windows.Window, exact bool) (string, int32, []int32,
 	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
 
 	return match, scoreRes, posRes, startRes, true
+}
+
+func findIcons() {
+	conf := fastwalk.Config{
+		Follow: true,
+	}
+
+	for _, root := range xdg.ApplicationDirs {
+		if _, err := os.Stat(root); err != nil {
+			continue
+		}
+
+		if err := fastwalk.Walk(&conf, root, walkFunction); err != nil {
+			slog.Error(Name, "walk", err)
+			continue
+		}
+	}
+}
+
+func walkFunction(path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+
+	if filepath.Ext(path) != ".desktop" {
+		return nil
+	}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	class := ""
+	icon := ""
+
+	for l := range strings.Lines(string(b)) {
+		if after, ok := strings.CutPrefix(l, "StartupWMClass="); ok {
+			class = strings.TrimSpace(after)
+		}
+
+		if after, ok := strings.CutPrefix(l, "Icon="); ok {
+			icon = strings.TrimSpace(after)
+		}
+	}
+
+	if class != "" && icon != "" {
+		icons[class] = icon
+	}
+
+	//
+	// if exists {
+	// 	return nil
+	// }
+	//
+	// if !d.IsDir() && filepath.Ext(path) == ".desktop" {
+	// 	addNewEntry(path)
+	// }
+	//
+	// if d.IsDir() {
+	// 	addDirToWatcher(path, watchedDirs)
+	// }
+
+	return err
 }
