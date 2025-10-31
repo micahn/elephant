@@ -74,7 +74,7 @@ type Config struct {
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
 	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
 	IgnoreSymbols  bool   `koanf:"ignore_symbols" desc:"ignores symbols/unicode" default:"true"`
-	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries every X minutes" default:"0"`
+	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries entries older than X minutes" default:"0"`
 }
 
 func Setup() {
@@ -123,9 +123,13 @@ func cleanup() {
 
 		i := 0
 
-		for k := range clipboardhistory {
-			delete(clipboardhistory, k)
-			i++
+		now := time.Now()
+
+		for k, v := range clipboardhistory {
+			if now.Sub(v.Time).Minutes() >= float64(config.AutoCleanup) {
+				delete(clipboardhistory, k)
+				i++
+			}
 		}
 
 		if i != 0 {
