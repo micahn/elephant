@@ -111,14 +111,14 @@ func Setup() {
 		}
 	}
 
-	switch os.Getenv("XDG_CURRENT_DESKTOP") {
-	case "niri":
-		wmi = Niri{}
-	case "Hyprland":
-		wmi = Hyprland{}
+	if config.WMIntegration {
+		switch os.Getenv("XDG_CURRENT_DESKTOP") {
+		case "niri":
+			wmi = Niri{}
+		case "Hyprland":
+			wmi = Hyprland{}
+		}
 	}
-
-	config.WMIntegration = wmi != nil
 
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
 }

@@ -92,7 +92,7 @@ func Activate(identifier, action string, query string, args string) {
 			Setsid: true,
 		}
 
-		if config.WMIntegration {
+		if config.WMIntegration && wmi != nil {
 			go wmi.MoveToWorkspace(wmi.GetWorkspace(), files[parts[0]].StartupWMClass)
 		}
 
