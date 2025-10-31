@@ -308,21 +308,11 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 					Field: "text",
 				}
 
-				e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
-
 				if v.SearchName {
 					me.Keywords = append(me.Keywords, me.Menu)
 				}
 
-				for _, v := range me.Keywords {
-					score, positions, start := common.FuzzyScore(query, v, exact)
-
-					if score > e.Score {
-						e.Score = score
-						e.Fuzzyinfo.Positions = positions
-						e.Fuzzyinfo.Start = start
-					}
-				}
+				_, e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start, _ = calcScore(query, me, exact)
 			}
 
 			var usageScore int32
@@ -352,4 +342,35 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 func Icon() string {
 	return ""
+}
+
+func calcScore(q string, d common.Entry, exact bool) (string, int32, []int32, int32, bool) {
+	var scoreRes int32
+	var posRes []int32
+	var startRes int32
+	var match string
+	var modifier int32
+
+	toSearch := []string{d.Text, d.Subtext}
+	toSearch = append(toSearch, d.Keywords...)
+
+	for k, v := range toSearch {
+		score, pos, start := common.FuzzyScore(q, v, exact)
+
+		if score > scoreRes {
+			scoreRes = score
+			posRes = pos
+			startRes = start
+			match = v
+			modifier = int32(k)
+		}
+	}
+
+	if scoreRes == 0 {
+		return "", 0, nil, 0, false
+	}
+
+	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
+
+	return match, scoreRes, posRes, startRes, true
 }
