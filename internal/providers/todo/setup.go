@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"net"
@@ -34,6 +36,7 @@ type Config struct {
 	UrgentTimeFrame   int        `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
 	DuckPlayerVolumes bool       `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
 	Categories        []Category `koanf:"categories" desc:"categories" default:""`
+	Location          string     `koanf:"location" desc:"location of the CSV file" default:"elephant cache dir"`
 	Notification      `koanf:",squash"`
 }
 
@@ -91,6 +94,10 @@ func (i Item) toCSVRow() string {
 
 func saveItems() {
 	f := common.CacheFile(fmt.Sprintf("%s.csv", Name))
+
+	if config.Location != "" {
+		f = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
+	}
 
 	err := os.MkdirAll(filepath.Dir(f), 0o755)
 	if err != nil {
@@ -199,15 +206,18 @@ func Setup() {
 		CreatePrefix:      "",
 		UrgentTimeFrame:   10,
 		DuckPlayerVolumes: true,
+		Location:          "",
 		Notification: Notification{
 			Title: "Task Due",
 			Body:  "%TASK%",
 		},
 	}
 
-	loadItems()
-
 	common.LoadConfig(Name, config)
+
+	if !migrateGOBtoCSV() {
+		loadItems()
+	}
 
 	go notify()
 }
@@ -341,8 +351,36 @@ func store(query string) {
 	saveItems()
 }
 
+func migrateGOBtoCSV() bool {
+	file := common.CacheFile(fmt.Sprintf("%s.gob", Name))
+
+	if common.FileExists(file) {
+		f, err := os.ReadFile(file)
+		if err != nil {
+			slog.Error(Name, "itemsread", err)
+		} else {
+			decoder := gob.NewDecoder(bytes.NewReader(f))
+
+			err = decoder.Decode(&items)
+			if err != nil {
+				slog.Error(Name, "decoding", err)
+			}
+		}
+
+		saveItems()
+
+		os.Remove(file)
+	}
+
+	return false
+}
+
 func loadItems() {
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
+
+	if config.Location != "" {
+		file = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
+	}
 
 	if common.FileExists(file) {
 		f, err := os.ReadFile(file)
