@@ -151,11 +151,10 @@ func calcScore(q string, d *windows.Window, exact bool) (string, int32, []int32,
 	var posRes []int32
 	var startRes int32
 	var match string
-	var modifier int32
 
 	toSearch := []string{d.Title, d.AppID}
 
-	for k, v := range toSearch {
+	for _, v := range toSearch {
 		score, pos, start := common.FuzzyScore(q, v, exact)
 
 		if score > scoreRes {
@@ -163,7 +162,6 @@ func calcScore(q string, d *windows.Window, exact bool) (string, int32, []int32,
 			posRes = pos
 			startRes = start
 			match = v
-			modifier = int32(k)
 		}
 	}
 
@@ -171,7 +169,7 @@ func calcScore(q string, d *windows.Window, exact bool) (string, int32, []int32,
 		return "", 0, nil, 0, false
 	}
 
-	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
+	scoreRes = max(scoreRes-startRes, 10)
 
 	return match, scoreRes, posRes, startRes, true
 }
