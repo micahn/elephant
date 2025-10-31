@@ -96,6 +96,8 @@ func Activate(identifier, action string, query string, args string) {
 			go wmi.MoveToWorkspace(wmi.GetWorkspace(), files[parts[0]].StartupWMClass)
 		}
 
+		slog.Debug(Name, "activate", cmd.String())
+
 		err := cmd.Start()
 		if err != nil {
 			slog.Error(Name, "activate", identifier, "error", err)
