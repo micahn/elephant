@@ -6,6 +6,7 @@ flake: {
 }:
 with lib; let
   cfg = config.services.elephant;
+  settingsFormat = pkgs.formats.toml {};
 
   # Available providers
   providerOptions = {
@@ -23,6 +24,11 @@ with lib; let
     bluetooth = "Basic Bluetooth management";
   };
 in {
+  imports = [
+    # Deprecated: delete with v3.0.0 release
+    (lib.mkRenamedOptionModule ["services" "elephant" "config"] ["services" "elephant" "settings"])
+  ];
+
   options.services.elephant = {
     enable = mkEnableOption "Elephant launcher backend system service";
 
@@ -54,7 +60,7 @@ in {
         "calc"
       ];
       description = ''
-        List of providers to enable. Available providers:
+        List of built-in providers to enable (install). Available providers:
         ${concatStringsSep "\n" (mapAttrsToList (name: desc: "  - ${name}: ${desc}") providerOptions)}
       '';
     };
@@ -71,22 +77,49 @@ in {
       description = "Enable debug logging for elephant service.";
     };
 
-    config = mkOption {
-      type = types.attrs;
+    settings = mkOption {
+      description = ''
+        elephant/elephant.toml configuration as Nix attributes.
+        `elephant generatedoc` to view your installed version's options.
+      '';
       default = {};
-      example = literalExpression ''
+      type = types.submodule {
+        freeformType = settingsFormat.type;
+      };
+      example = ''
         {
-          providers = {
-            files = {
-              min_score = 50;
-            };
-            desktopapplications = {
-              launch_prefix = "uwsm app --";
-            };
-          };
+          auto_detect_launch_prefix = false;
         }
       '';
-      description = "Elephant configuration as Nix attributes.";
+    };
+
+    provider = mkOption {
+      description = "Provider specific settings";
+      type = types.attrsOf (types.submodule {
+        options = {
+          settings = mkOption {
+            description = ''
+              Provider specific toml configuration as Nix attributes.
+              `elephant generatedoc` to view your installed providers version options.
+            '';
+            type = types.submodule {
+              freeformType = settingsFormat.type;
+            };
+            default = {};
+          };
+        };
+      });
+      default = {};
+      example = ''
+        websearch.settings = {
+          entries = [
+            {
+              name = "NixOS Options";
+              url = "https://search.nixos.org/options?query=%TERM%";
+            }
+          ];
+        };
+      '';
     };
   };
 
@@ -97,8 +130,8 @@ in {
     environment.etc =
       {
         # Generate elephant config
-        "xdg/elephant/elephant.toml" = mkIf (cfg.config != {}) {
-          source = (pkgs.formats.toml {}).generate "elephant.toml" cfg.config;
+        "xdg/elephant/elephant.toml" = mkIf (cfg.settings != {}) {
+          source = settingsFormat.generate "elephant.toml" cfg.settings;
         };
       }
       # Generate provider files
@@ -112,7 +145,18 @@ in {
               source = "${cfg.package}/lib/elephant/providers/${provider}.so";
             }
         )
-        cfg.providers);
+        cfg.providers)
+      # Generate provider configs
+      // (mapAttrs'
+        (
+          name: {settings, ...}:
+            lib.nameValuePair
+            "xdg/elephant/${name}.toml"
+            {
+              source = settingsFormat.generate "${name}.toml" settings;
+            }
+        )
+        cfg.provider);
 
     systemd.services.elephant = mkIf cfg.installService {
       description = "Elephant launcher backend";

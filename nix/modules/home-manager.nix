@@ -6,6 +6,7 @@ flake: {
 }:
 with lib; let
   cfg = config.programs.elephant;
+  settingsFormat = pkgs.formats.toml {};
 
   # Available providers
   providerOptions = {
@@ -24,6 +25,11 @@ with lib; let
     windows = "Find and focus windows";
   };
 in {
+  imports = [
+    # Deprecated: delete with v3.0.0 release
+    (lib.mkRenamedOptionModule ["programs" "elephant" "config"] ["programs" "elephant" "settings"])
+  ];
+
   options.programs.elephant = {
     enable = mkEnableOption "Elephant launcher backend";
 
@@ -43,7 +49,7 @@ in {
         "calc"
       ];
       description = ''
-        List of providers to enable. Available providers:
+        List of built-in providers to enable (install). Available providers:
         ${concatStringsSep "\n" (mapAttrsToList (name: desc: "  - ${name}: ${desc}") providerOptions)}
       '';
     };
@@ -60,22 +66,49 @@ in {
       description = "Enable debug logging for elephant service.";
     };
 
-    config = mkOption {
-      type = types.attrs;
+    settings = mkOption {
+      description = ''
+        elephant/elephant.toml configuration as Nix attributes.
+        `elephant generatedoc` to view your installed version's options.
+      '';
       default = {};
-      example = literalExpression ''
+      type = types.submodule {
+        freeformType = settingsFormat.type;
+      };
+      example = ''
         {
-          providers = {
-            files = {
-              min_score = 50;
-            };
-            desktopapplications = {
-              launch_prefix = "uwsm app --";
-            };
-          };
+          auto_detect_launch_prefix = false;
         }
       '';
-      description = "Elephant configuration as Nix attributes.";
+    };
+
+    provider = mkOption {
+      description = "Provider specific settings";
+      type = types.attrsOf (types.submodule {
+        options = {
+          settings = mkOption {
+            description = ''
+              Provider specific toml configuration as Nix attributes.
+              `elephant generatedoc` to view your installed providers version options.
+            '';
+            type = types.submodule {
+              freeformType = settingsFormat.type;
+            };
+            default = {};
+          };
+        };
+      });
+      default = {};
+      example = ''
+        websearch.settings = {
+          entries = [
+            {
+              name = "NixOS Options";
+              url = "https://search.nixos.org/options?query=%TERM%";
+            }
+          ];
+        };
+      '';
     };
   };
 
@@ -86,8 +119,8 @@ in {
     xdg.configFile =
       {
         # Generate elephant config
-        "elephant/elephant.toml" = mkIf (cfg.config != {}) {
-          source = (pkgs.formats.toml {}).generate "elephant.toml" cfg.config;
+        "elephant/elephant.toml" = mkIf (cfg.settings != {}) {
+          source = settingsFormat.generate "elephant.toml" cfg.settings;
         };
       }
       //
@@ -103,7 +136,18 @@ in {
               force = true; # Required since previous version used activation script
             }
         )
-        cfg.providers);
+        cfg.providers)
+      # Generate provider configs
+      // (mapAttrs'
+        (
+          name: {settings, ...}:
+            lib.nameValuePair
+            "elephant/${name}.toml"
+            {
+              source = settingsFormat.generate "${name}.toml" settings;
+            }
+        )
+        cfg.provider);
 
     systemd.user.services.elephant = mkIf cfg.installService {
       Unit = {
@@ -121,7 +165,7 @@ in {
 
         X-Restart-Triggers = [
           (builtins.hashString "sha256" (builtins.toJSON {
-            inherit (cfg) config providers debug;
+            inherit (cfg) settings providers provider debug;
           }))
         ];
 
