@@ -139,7 +139,7 @@ func Install(menus []string) {
 		path := filepath.Join(repo, v)
 
 		if common.FileExists(path) {
-			cmd := exec.Command("cp", path, dest)
+			cmd := exec.Command("cp", "-r", path, dest)
 			if err := cmd.Run(); err != nil {
 				slog.Error("install", "copy", err)
 			}
