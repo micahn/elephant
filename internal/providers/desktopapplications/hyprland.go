@@ -14,6 +14,10 @@ import (
 
 type Hyprland struct{}
 
+func (Hyprland) GetCurrentWindows() []string {
+	return []string{}
+}
+
 func (Hyprland) GetWorkspace() string {
 	cmd := exec.Command("hyprctl", "activeworkspace")
 

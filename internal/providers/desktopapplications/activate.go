@@ -93,7 +93,11 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if config.WMIntegration && wmi != nil {
-			go wmi.MoveToWorkspace(wmi.GetWorkspace(), files[parts[0]].StartupWMClass)
+			appid := files[parts[0]].StartupWMClass
+
+			if !slices.Contains(config.SingleInstanceApps, appid) || !slices.Contains(wmi.GetCurrentWindows(), appid) {
+				go wmi.MoveToWorkspace(wmi.GetWorkspace(), appid)
+			}
 		}
 
 		slog.Debug(Name, "activate", cmd.String())

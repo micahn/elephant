@@ -13,6 +13,36 @@ import (
 
 type Niri struct{}
 
+type NiriWindow struct {
+	AppID string `json:"app_id"`
+}
+
+func (Niri) GetCurrentWindows() []string {
+	res := []string{}
+
+	cmd := exec.Command("niri", "msg", "-j", "windows")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error(Name, "nirigetcurrentwindows", err)
+		return res
+	}
+
+	var windows []NiriWindow
+
+	err = json.Unmarshal(out, &windows)
+	if err != nil {
+		slog.Error(Name, "nirigetcurrentwindows", err)
+		return res
+	}
+
+	for _, v := range windows {
+		res = append(res, v.AppID)
+	}
+
+	return res
+}
+
 func (Niri) GetWorkspace() string {
 	cmd := exec.Command("niri", "msg", "workspaces")
 

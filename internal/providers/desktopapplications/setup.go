@@ -33,6 +33,7 @@ var (
 
 type WMIntegration interface {
 	GetWorkspace() string
+	GetCurrentWindows() []string
 	MoveToWorkspace(workspace, initialWMClass string)
 }
 
@@ -56,6 +57,7 @@ type Config struct {
 	WindowIntegration              bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
 	WindowIntegrationIgnoreActions bool              `koanf:"window_integration_ignore_actions" desc:"will ignore the window integration for actions" default:"true"`
 	WMIntegration                  bool              `koanf:"wm_integration" desc:"Moves apps to the workspace where they were launched at automatically. Currently Niri only." default:"false"`
+	SingleInstanceApps             []string          `koanf:"single_instance_apps" desc:"application IDs that don't ever spawn a new window. " default:"[\"discord\"]"`
 }
 
 func loadpinned() []string {
@@ -98,6 +100,7 @@ func Setup() {
 		IconPlaceholder:         "applications-other",
 		Aliases:                 map[string]string{},
 		WindowIntegration:       false,
+		SingleInstanceApps:      []string{"discord"},
 	}
 
 	common.LoadConfig(Name, config)
