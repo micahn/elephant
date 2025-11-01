@@ -15,6 +15,7 @@ import (
 
 	"github.com/abenz1267/elephant/v2/internal/comm"
 	"github.com/abenz1267/elephant/v2/internal/comm/client"
+	"github.com/abenz1267/elephant/v2/internal/install"
 	"github.com/abenz1267/elephant/v2/internal/providers"
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
@@ -183,6 +184,48 @@ WantedBy=graphical-session.target
 					client.Query(cmd.StringArg("content"), cmd.Bool("async"))
 
 					return nil
+				},
+			},
+			{
+				Name:  "community",
+				Usage: "elephant-community based actions",
+				Commands: []*cli.Command{
+					{
+						Name:        "install",
+						Description: "installs the given menus, if no menu is given , it will list availables instead",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Install(cmd.Args().Slice())
+
+							return nil
+						},
+					},
+					{
+						Name:        "readme",
+						Description: "displays the readme of the given menu",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Readme(cmd.Args().First())
+
+							return nil
+						},
+					},
+					{
+						Name:        "remove",
+						Description: "if not provided with any menu names, it will list all installed menus",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Remove(cmd.Args().Slice())
+
+							return nil
+						},
+					},
+					{
+						Name:        "list",
+						Description: "lists all available community menus",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.List()
+
+							return nil
+						},
+					},
 				},
 			},
 			{

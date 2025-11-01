@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/charlievieth/fastwalk"
 	"github.com/pelletier/go-toml/v2"
 
@@ -194,6 +195,9 @@ func LoadMenus() {
 		path := filepath.Join(v, "menus")
 		MenuConfigLoaded.Paths = append(MenuConfigLoaded.Paths, path)
 	}
+
+	installed := filepath.Join(xdg.DataHome, "elephant", "install")
+	MenuConfigLoaded.Paths = append(MenuConfigLoaded.Paths, installed)
 
 	conf := fastwalk.Config{
 		Follow: true,
