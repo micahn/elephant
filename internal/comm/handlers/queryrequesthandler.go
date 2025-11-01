@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -36,13 +37,22 @@ var (
 
 type QueryRequest struct{}
 
-func UpdateItem(query string, conn net.Conn, item *pb.QueryResponse_Item) {
+func UpdateItem(format uint8, query string, conn net.Conn, item *pb.QueryResponse_Item) {
 	req := pb.QueryResponse{
 		Query: query,
 		Item:  item,
 	}
 
-	b, err := proto.Marshal(&req)
+	var b []byte
+	var err error
+
+	switch format {
+	case 0:
+		b, err = proto.Marshal(&req)
+	case 1:
+		b, err = json.Marshal(&req)
+	}
+
 	if err != nil {
 		slog.Debug("async update", "marshal", err)
 		return
@@ -63,17 +73,27 @@ func UpdateItem(query string, conn net.Conn, item *pb.QueryResponse_Item) {
 	}
 }
 
-func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
+func (h *QueryRequest) Handle(format uint8, cid uint32, conn net.Conn, data []byte) {
 	qid.Add(1)
 	qqid := qid.Load()
 
 	start := time.Now()
 
 	req := &pb.QueryRequest{}
-	if err := proto.Unmarshal(data, req); err != nil {
-		slog.Error("queryhandler", "protobuf", err)
 
-		return
+	switch format {
+	case 0:
+		if err := proto.Unmarshal(data, req); err != nil {
+			slog.Error("queryhandler", "protobuf", err)
+
+			return
+		}
+	case 1:
+		if err := json.Unmarshal(data, req); err != nil {
+			slog.Error("queryhandler", "protobuf", err)
+
+			return
+		}
 	}
 
 	wsprefix := ""
@@ -129,7 +149,7 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 		go func(text string, wg *sync.WaitGroup) {
 			defer wg.Done()
 			if p, ok := providers.Providers[v]; ok {
-				res := p.Query(conn, text, len(req.Providers) == 1, req.Exactsearch)
+				res := p.Query(conn, text, len(req.Providers) == 1, req.Exactsearch, format)
 
 				mut.Lock()
 				entries = append(entries, res...)
@@ -174,7 +194,16 @@ func (h *QueryRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 			Item:  v,
 		}
 
-		b, err := proto.Marshal(&req)
+		var b []byte
+		var err error
+
+		switch format {
+		case 0:
+			b, err = proto.Marshal(&req)
+		case 1:
+			b, err = json.Marshal(&req)
+		}
+
 		if err != nil {
 			slog.Error("queryrequesthandler", "marshal", err)
 			continue

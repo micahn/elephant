@@ -431,7 +431,7 @@ func loadItems() {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 	urgent := time.Now().Add(time.Duration(config.UrgentTimeFrame) * time.Minute)
 

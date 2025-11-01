@@ -21,7 +21,7 @@ var (
 var registry []MessageHandler
 
 type MessageHandler interface {
-	Handle(cid uint32, conn net.Conn, data []byte)
+	Handle(format uint8, cid uint32, conn net.Conn, data []byte)
 }
 
 const (
@@ -29,6 +29,8 @@ const (
 	ActivateRequestHandlerPos  = 1
 	SubscribeRequestHandlerPos = 2
 	MenuRequestHandlerPos      = 3
+	Protobuf                   = 0
+	JSON                       = 1
 )
 
 func init() {
@@ -94,6 +96,18 @@ func handle(conn net.Conn, cid uint32) {
 
 		mType := int(tb[0])
 
+		fb := make([]byte, 1)
+		if _, err := io.ReadFull(conn, fb); err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			slog.Error("conn", "readtype", err)
+			continue
+		}
+
+		format := uint8(fb[0])
+
 		lb := make([]byte, 4)
 		if _, err := io.ReadFull(conn, lb); err != nil {
 			slog.Error("conn", "readlength", err)
@@ -108,6 +122,6 @@ func handle(conn net.Conn, cid uint32) {
 			continue
 		}
 
-		go registry[mType].Handle(cid, conn, p)
+		go registry[mType].Handle(format, cid, conn, p)
 	}
 }

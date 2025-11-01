@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,12 +12,22 @@ import (
 
 type MenuRequest struct{}
 
-func (a *MenuRequest) Handle(cid uint32, conn net.Conn, data []byte) {
+func (a *MenuRequest) Handle(format uint8, cid uint32, conn net.Conn, data []byte) {
 	req := &pb.MenuRequest{}
-	if err := proto.Unmarshal(data, req); err != nil {
-		slog.Error("menurequesthandler", "protobuf", err)
 
-		return
+	switch format {
+	case 0:
+		if err := proto.Unmarshal(data, req); err != nil {
+			slog.Error("menurequesthandler", "protobuf", err)
+
+			return
+		}
+	case 1:
+		if err := json.Unmarshal(data, req); err != nil {
+			slog.Error("menurequesthandler", "protobuf", err)
+
+			return
+		}
 	}
 
 	ProviderUpdated <- fmt.Sprintf("%s:%s", "menus", req.Menu)

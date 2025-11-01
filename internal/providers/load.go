@@ -23,7 +23,7 @@ type Provider struct {
 	Setup      func()
 	Icon       func() string
 	Activate   func(identifier, action, query, args string)
-	Query      func(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item
+	Query      func(conn net.Conn, query string, single bool, exact bool, format uint8) []*pb.QueryResponse_Item
 }
 
 var (
@@ -115,7 +115,7 @@ func Load(setup bool) {
 					Setup:      setupFunc.(func()),
 					Name:       name.(*string),
 					Activate:   activateFunc.(func(string, string, string, string)),
-					Query:      queryFunc.(func(net.Conn, string, bool, bool) []*pb.QueryResponse_Item),
+					Query:      queryFunc.(func(net.Conn, string, bool, bool, uint8) []*pb.QueryResponse_Item),
 					NamePretty: namePretty.(*string),
 					PrintDoc:   printDocFunc.(func()),
 				}

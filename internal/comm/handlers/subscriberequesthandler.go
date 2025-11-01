@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"slices"
@@ -19,15 +20,25 @@ import (
 
 type SubscribeRequest struct{}
 
-func (a *SubscribeRequest) Handle(cid uint32, conn net.Conn, data []byte) {
+func (a *SubscribeRequest) Handle(format uint8, cid uint32, conn net.Conn, data []byte) {
 	req := &pb.SubscribeRequest{}
-	if err := proto.Unmarshal(data, req); err != nil {
-		slog.Error("activationrequesthandler", "protobuf", err)
 
-		return
+	switch format {
+	case 0:
+		if err := proto.Unmarshal(data, req); err != nil {
+			slog.Error("activationrequesthandler", "protobuf", err)
+
+			return
+		}
+	case 1:
+		if err := json.Unmarshal(data, req); err != nil {
+			slog.Error("activationrequesthandler", "protobuf", err)
+
+			return
+		}
 	}
 
-	subscribe(int(req.Interval), req.Provider, req.Query, conn)
+	subscribe(format, int(req.Interval), req.Provider, req.Query, conn)
 }
 
 var (
@@ -43,6 +54,7 @@ const (
 )
 
 type sub struct {
+	format   uint8
 	sid      uint32
 	interval int
 	provider string
@@ -75,7 +87,7 @@ func init() {
 
 			for k, v := range subs {
 				if v.provider == p && v.interval == 0 && v.query == "" {
-					if ok := updated(v.conn, value); !ok {
+					if ok := updated(v.format, v.conn, value); !ok {
 						toDelete = append(toDelete, k)
 					}
 				}
@@ -88,32 +100,11 @@ func init() {
 	}()
 }
 
-func checkHealth() {
-	for {
-		time.Sleep(1 * time.Second)
-
-		toDelete := []uint32{}
-
-		for k, v := range subs {
-			var buffer bytes.Buffer
-			buffer.Write([]byte{SubscriptionHealthCheck})
-
-			_, err := v.conn.Write(buffer.Bytes())
-			if err != nil {
-				toDelete = append(toDelete, k)
-			}
-		}
-
-		for _, v := range toDelete {
-			delete(subs, v)
-		}
-	}
-}
-
-func subscribe(interval int, provider, query string, conn net.Conn) {
+func subscribe(format uint8, interval int, provider, query string, conn net.Conn) {
 	sid.Add(1)
 
 	sub := &sub{
+		format:   format,
 		sid:      sid.Load(),
 		interval: interval,
 		provider: provider,
@@ -127,13 +118,13 @@ func subscribe(interval int, provider, query string, conn net.Conn) {
 	mut.Unlock()
 
 	if interval != 0 {
-		go watch(sub, conn)
+		go watch(format, sub, conn)
 	}
 
 	slog.Info("subscription", "new", sub.provider)
 }
 
-func watch(s *sub, conn net.Conn) {
+func watch(format uint8, s *sub, conn net.Conn) {
 	p := providers.Providers[s.provider]
 
 	for {
@@ -143,7 +134,7 @@ func watch(s *sub, conn net.Conn) {
 			return
 		}
 
-		res := p.Query(conn, s.query, true, false)
+		res := p.Query(conn, s.query, true, false, format)
 
 		slices.SortFunc(res, sortEntries)
 
@@ -152,7 +143,7 @@ func watch(s *sub, conn net.Conn) {
 			if len(res) != len(s.results) {
 				s.results = res
 
-				if ok := updated(conn, ""); !ok {
+				if ok := updated(format, conn, ""); !ok {
 					delete(subs, s.sid)
 				}
 
@@ -164,7 +155,7 @@ func watch(s *sub, conn net.Conn) {
 				if !equals(v, s.results[k]) {
 					s.results = res
 
-					if ok := updated(conn, ""); !ok {
+					if ok := updated(format, conn, ""); !ok {
 						delete(subs, s.sid)
 					}
 
@@ -177,12 +168,21 @@ func watch(s *sub, conn net.Conn) {
 	}
 }
 
-func updated(conn net.Conn, value string) bool {
+func updated(format uint8, conn net.Conn, value string) bool {
 	resp := pb.SubscribeResponse{
 		Value: value,
 	}
 
-	b, err := proto.Marshal(&resp)
+	var b []byte
+	var err error
+
+	switch format {
+	case 0:
+		b, err = proto.Marshal(&resp)
+	case 1:
+		b, err = json.Marshal(&resp)
+	}
+
 	if err != nil {
 		panic(err)
 	}
