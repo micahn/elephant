@@ -46,7 +46,7 @@ type OpenedOrChangedEvent struct {
 }
 
 func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "niri", "msg", "-j", "event-stream")
@@ -77,9 +77,9 @@ func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
 				continue
 			}
 
-			if e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass && e.WindowOpenedOrChanged.Window.Layout.PosInScrollingLayout != nil {
+			if e.WindowOpenedOrChanged != nil && e.WindowOpenedOrChanged.Window.AppID == initialWMClass {
 				if c.GetWorkspace() == workspace {
-					return
+					continue
 				}
 
 				cmd := exec.Command("niri", "msg", "action", "move-window-to-workspace", workspace, "--window-id", fmt.Sprintf("%d", e.WindowOpenedOrChanged.Window.ID), "--focus", "false")
@@ -88,12 +88,8 @@ func (c Niri) MoveToWorkspace(workspace, initialWMClass string) {
 					slog.Error(Name, "nirimovetoworkspace", out)
 				}
 
-				return
+				continue
 			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			slog.Error(Name, "monitor", err)
 		}
 	}()
 
