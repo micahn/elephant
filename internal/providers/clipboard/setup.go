@@ -282,6 +282,10 @@ func handleChange() {
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
+		if paused {
+			continue
+		}
+
 		img, imgerr := getClipboardImage()
 		if imgerr == nil {
 			mu.Lock()
