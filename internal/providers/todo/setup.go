@@ -18,6 +18,7 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	"github.com/sho0pi/naturaltime"
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 	NamePretty = "Todo List"
 	config     *Config
 	items      = []Item{}
+	parser     *naturaltime.Parser
 )
 
 //go:embed README.md
@@ -37,6 +39,7 @@ type Config struct {
 	DuckPlayerVolumes bool       `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
 	Categories        []Category `koanf:"categories" desc:"categories" default:""`
 	Location          string     `koanf:"location" desc:"location of the CSV file" default:"elephant cache dir"`
+	TimeFormat        string     `koanf:"time_format" desc:"format of the time. Look at https://go.dev/src/time/format.go for the layout." default:"02-Jan 15:04"`
 	Notification      `koanf:",squash"`
 }
 
@@ -146,58 +149,29 @@ func (i *Item) fromQuery(query string) {
 		i.Urgency = UrgencyCritical
 	}
 
-	if strings.HasPrefix(query, "in ") || strings.HasPrefix(query, "at ") {
-		splits := strings.SplitN(query, " ", 3)
+	splits := strings.Fields(query)
 
-		switch len(splits) {
-		case 3:
-			i.Text = splits[2]
-
-			now := time.Now()
-
-			switch splits[0] {
-			case "in":
-				switch {
-				case strings.HasSuffix(splits[1], "s"):
-					add := strings.TrimSuffix(splits[1], "s")
-
-					addi, _ := strconv.Atoi(add)
-					now = now.Add(time.Duration(addi) * time.Second)
-				case strings.HasSuffix(splits[1], "m"):
-					add := strings.TrimSuffix(splits[1], "m")
-
-					addi, _ := strconv.Atoi(add)
-					now = now.Add(time.Duration(addi) * time.Minute)
-					now = now.Truncate(time.Minute)
-				case strings.HasSuffix(splits[1], "h"):
-					add := strings.TrimSuffix(splits[1], "h")
-
-					addi, _ := strconv.Atoi(add)
-					now = now.Add(time.Duration(addi) * time.Hour)
-					now = now.Truncate(time.Minute)
-				}
-			case "at":
-				hour := splits[1][:2]
-				minute := splits[1][2:]
-				houri, _ := strconv.Atoi(hour)
-				minutei, _ := strconv.Atoi(minute)
-
-				now = time.Date(now.Year(), now.Month(), now.Day(),
-					0, 0, 0, 0, now.Location())
-				now = now.Add(time.Duration(houri)*time.Hour +
-					time.Duration(minutei)*time.Minute)
-			}
-
-			i.Scheduled = now
+	for k := range splits {
+		date, err := parser.ParseDate(strings.Join(splits[:k], " "), time.Now())
+		if date != nil && err == nil {
+			i.Scheduled = *date
+			i.Text = strings.Join(splits[k:], " ")
+			break
 		}
-	} else {
-		i.Text = query
+
+		i.Text = strings.Join(splits, " ")
 	}
 
 	i.Text = strings.TrimSpace(i.Text)
 }
 
 func Setup() {
+	var err error
+	parser, err = naturaltime.New()
+	if err != nil {
+		panic(err)
+	}
+
 	config = &Config{
 		Config: common.Config{
 			Icon:     "checkbox-checked",
@@ -207,6 +181,7 @@ func Setup() {
 		UrgentTimeFrame:   10,
 		DuckPlayerVolumes: true,
 		Location:          "",
+		TimeFormat:        "02-Jan 15:04",
 		Notification: Notification{
 			Title: "Task Due",
 			Body:  "%TASK%",
@@ -484,18 +459,18 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 				hours := int(duration.Hours())
 				minutes := int(duration.Minutes()) % 60
 
-				e.Subtext = fmt.Sprintf("Started: %s, Finished: %s, Duration: %s", v.Started.Format("15:04"), v.Finished.Format("15:04"), fmt.Sprintf("%02d:%02d", hours, minutes))
+				e.Subtext = fmt.Sprintf("Started: %s, Finished: %s, Duration: %s", v.Started.Format(config.TimeFormat), v.Finished.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
 			} else {
-				e.Subtext = fmt.Sprintf("Finished: %s", v.Finished.Format("15:04"))
+				e.Subtext = fmt.Sprintf("Finished: %s", v.Finished.Format(config.TimeFormat))
 			}
 		} else if !v.Started.IsZero() {
 			duration := time.Since(v.Started)
 			hours := int(duration.Hours())
 			minutes := int(duration.Minutes()) % 60
 
-			e.Subtext = fmt.Sprintf("Started: %s, Ongoing: %s", v.Started.Format("15:04"), fmt.Sprintf("%02d:%02d", hours, minutes))
+			e.Subtext = fmt.Sprintf("Started: %s, Ongoing: %s", v.Started.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
 		} else if !v.Scheduled.IsZero() {
-			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format("15:04"))
+			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format(config.TimeFormat))
 		}
 
 		if query != "" {
@@ -547,7 +522,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			e.State = []string{StateCreating}
 
 			if !i.Scheduled.IsZero() {
-				e.Subtext = i.Scheduled.Format(time.TimeOnly)
+				e.Subtext = i.Scheduled.Format(config.TimeFormat)
 			}
 
 			entries = append(entries, e)
