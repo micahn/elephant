@@ -55,10 +55,6 @@ type Window struct {
 }
 
 func Setup() {
-	if os.Getenv("XDG_CURRENT_DESKTOP") != "niri" {
-		return
-	}
-
 	config = &Config{
 		Config: common.Config{
 			Icon:     "view-grid",
