@@ -74,6 +74,7 @@ func Remove(menus []string) {
 
 			if d.IsDir() {
 				fmt.Println(filepath.Base(path))
+				return filepath.SkipDir
 			}
 
 			return nil
@@ -109,6 +110,7 @@ func List() {
 
 		if d.IsDir() {
 			fmt.Println(filepath.Base(path))
+			return filepath.SkipDir
 		}
 
 		return nil
