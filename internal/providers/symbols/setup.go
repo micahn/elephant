@@ -36,7 +36,7 @@ type Config struct {
 
 var config *Config
 
-func Setup() {
+func Setup() bool {
 	start := time.Now()
 
 	config = &Config{
@@ -55,6 +55,8 @@ func Setup() {
 	parse()
 
 	slog.Info(Name, "symbols/emojis", len(symbols), "time", time.Since(start))
+
+	return true
 }
 
 func PrintDoc() {

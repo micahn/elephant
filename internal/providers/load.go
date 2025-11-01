@@ -20,7 +20,7 @@ type Provider struct {
 	Name       *string
 	PrintDoc   func()
 	NamePretty *string
-	Setup      func()
+	Setup      func() bool
 	Icon       func() string
 	Activate   func(identifier, action, query, args string)
 	Query      func(conn net.Conn, query string, single bool, exact bool, format uint8) []*pb.QueryResponse_Item
@@ -112,7 +112,7 @@ func Load(setup bool) {
 
 				provider := Provider{
 					Icon:       iconFunc.(func() string),
-					Setup:      setupFunc.(func()),
+					Setup:      setupFunc.(func() bool),
 					Name:       name.(*string),
 					Activate:   activateFunc.(func(string, string, string, string)),
 					Query:      queryFunc.(func(net.Conn, string, bool, bool, uint8) []*pb.QueryResponse_Item),
@@ -122,14 +122,14 @@ func Load(setup bool) {
 
 				go func() {
 					if setup {
-						provider.Setup()
+						if provider.Setup() {
+							mut.Lock()
+							Providers[*provider.Name] = provider
+							mut.Unlock()
+
+							slog.Info("providers", "loaded", *provider.Name)
+						}
 					}
-
-					mut.Lock()
-					Providers[*provider.Name] = provider
-					mut.Unlock()
-
-					slog.Info("providers", "loaded", *provider.Name)
 				}()
 
 				mut.Lock()

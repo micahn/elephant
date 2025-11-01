@@ -119,7 +119,7 @@ WantedBy=graphical-session.target
 
 					common.LoadGlobalConfig()
 
-					providers.Load(false)
+					providers.Load(true)
 
 					for _, v := range providers.Providers {
 						if *v.Name == "menus" {

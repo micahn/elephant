@@ -53,7 +53,7 @@ type Entry struct {
 	Installed   bool
 }
 
-func Setup() {
+func Setup() bool {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-internet",
@@ -71,6 +71,8 @@ func Setup() {
 	}
 
 	go refresh()
+
+	return true
 }
 
 func PrintDoc() {

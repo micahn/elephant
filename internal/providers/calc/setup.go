@@ -57,16 +57,16 @@ type HistoryItem struct {
 
 var history = []HistoryItem{}
 
-func Setup() {
+func Setup() bool {
 	p, err := exec.LookPath("qalc")
 	if err != nil {
 		slog.Error(Name, "setup", err)
-		return
+		return false
 	}
 
 	if p == "" {
 		slog.Error(Name, "setup", "qalc not installed")
-		return
+		return false
 	}
 
 	config = &Config{
@@ -95,6 +95,8 @@ func Setup() {
 			cmd.Wait()
 		}()
 	}
+
+	return true
 }
 
 func PrintDoc() {

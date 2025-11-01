@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -53,7 +54,7 @@ type Window struct {
 	After   []string `koanf:"after" desc:"commands to run after the window has been spawned" default:""`
 }
 
-func Setup() {
+func Setup() bool {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "view-grid",
@@ -62,6 +63,8 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	return os.Getenv("XDG_CURRENT_DESKTOP") == "niri"
 }
 
 func PrintDoc() {

@@ -29,7 +29,7 @@ type Config struct {
 	Hidden        []string `koanf:"hidden" desc:"hidden providers" default:"<empty>"`
 }
 
-func Setup() {
+func Setup() bool {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-other",
@@ -39,6 +39,7 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+	return true
 }
 
 func PrintDoc() {

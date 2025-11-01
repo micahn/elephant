@@ -82,7 +82,7 @@ func loadpinned() []string {
 	return pinned
 }
 
-func Setup() {
+func Setup() bool {
 	start := time.Now()
 	config = &Config{
 		Config: common.Config{
@@ -124,6 +124,7 @@ func Setup() {
 	}
 
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
+	return true
 }
 
 func parseRegexp() {

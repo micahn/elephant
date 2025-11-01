@@ -57,7 +57,7 @@ type Item struct {
 	Alias      string
 }
 
-func Setup() {
+func Setup() bool {
 	start := time.Now()
 
 	config = &Config{
@@ -124,6 +124,7 @@ func Setup() {
 	}
 
 	slog.Info(Name, "executables", len(items), "time", time.Since(start))
+	return true
 }
 
 func PrintDoc() {

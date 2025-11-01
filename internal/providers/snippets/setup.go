@@ -42,7 +42,7 @@ type Snippet struct {
 	Content  string   `koanf:"content" desc:"content to paste" default:""`
 }
 
-func Setup() {
+func Setup() bool {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "insert-text",
@@ -53,6 +53,8 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	return true
 }
 
 func PrintDoc() {

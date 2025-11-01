@@ -10,12 +10,10 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +27,6 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
-	"golang.org/x/net/html"
 )
 
 var (
@@ -77,7 +74,7 @@ type Config struct {
 	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries entries older than X minutes" default:"0"`
 }
 
-func Setup() {
+func Setup() bool {
 	start := time.Now()
 
 	config = &Config{
@@ -115,6 +112,8 @@ func Setup() {
 	}
 
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
+
+	return true
 }
 
 func cleanup() {
@@ -709,47 +708,4 @@ func getMimetypes() []string {
 
 func Icon() string {
 	return config.Icon
-}
-
-func getImgSrc(n *html.Node) string {
-	if n.Type == html.ElementNode && n.Data == "img" {
-		for _, attr := range n.Attr {
-			if attr.Key == "src" {
-				return attr.Val
-			}
-		}
-	}
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if src := getImgSrc(c); src != "" {
-			return src
-		}
-	}
-
-	return ""
-}
-
-func downloadImage(url string) ([]byte, string) {
-	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println(url)
-		slog.Error(Name, "download", err)
-		return nil, ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		slog.Error(Name, "download status", err)
-		return nil, ""
-	}
-
-	contentType := resp.Header.Get("Content-Type")
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error(Name, "download read", err)
-		return nil, ""
-	}
-
-	return data, contentType
 }
