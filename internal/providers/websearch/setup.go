@@ -49,7 +49,7 @@ type Engine struct {
 	Icon    string `koanf:"icon" desc:"icon to display, fallsback to global" default:""`
 }
 
-func Setup() bool {
+func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-internet",
@@ -98,8 +98,6 @@ func Setup() bool {
 
 		return 0
 	})
-
-	return len(config.Engines) > 0
 }
 
 func PrintDoc() {

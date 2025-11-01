@@ -42,7 +42,7 @@ var (
 	symbols = make(map[string]string)
 )
 
-func Setup() bool {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{
@@ -68,8 +68,6 @@ func Setup() bool {
 	}
 
 	slog.Info(Name, "loaded", time.Since(start))
-
-	return true
 }
 
 func PrintDoc() {

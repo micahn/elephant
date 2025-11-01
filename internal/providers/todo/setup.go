@@ -165,7 +165,7 @@ func (i *Item) fromQuery(query string) {
 	i.Text = strings.TrimSpace(i.Text)
 }
 
-func Setup() bool {
+func Setup() {
 	var err error
 	parser, err = naturaltime.New()
 	if err != nil {
@@ -195,8 +195,6 @@ func Setup() bool {
 	}
 
 	go notify()
-
-	return true
 }
 
 func notify() {

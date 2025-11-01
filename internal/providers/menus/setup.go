@@ -36,9 +36,7 @@ func PrintDoc() {
 	util.PrintConfig(common.Menu{}, Name)
 }
 
-func Setup() bool {
-	return true
-}
+func Setup() {}
 
 const (
 	ActionGoParent = "menus:parent"

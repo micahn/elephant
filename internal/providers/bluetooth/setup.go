@@ -43,7 +43,7 @@ var devices []Device
 
 var config *Config
 
-func Setup() bool {
+func Setup() {
 	start := time.Now()
 
 	config = &Config{
@@ -56,8 +56,6 @@ func Setup() bool {
 	common.LoadConfig(Name, config)
 
 	slog.Info(Name, "loaded", time.Since(start))
-
-	return true
 }
 
 func PrintDoc() {

@@ -38,13 +38,13 @@ type Config struct {
 	FdFlags       string   `koanf:"fd_flags" desc:"flags for fd" default:"--ignore-vcs --type file --type directory"`
 }
 
-func Setup() bool {
+func Setup() {
 	start := time.Now()
 
 	err := openDB()
 	if err != nil {
 		slog.Error(Name, "setup", err)
-		return false
+		return
 	}
 
 	config = &Config{
@@ -174,8 +174,6 @@ func Setup() bool {
 	}
 
 	slog.Info(Name, "time", time.Since(start))
-
-	return true
 }
 
 func handleDelete(deleteChan chan string) {

@@ -43,7 +43,7 @@ type Config struct {
 
 var config *Config
 
-func Setup() bool {
+func Setup() {
 	start := time.Now()
 
 	if !windows.IsSetup {
@@ -63,8 +63,6 @@ func Setup() bool {
 	findIcons()
 
 	slog.Info(Name, "loaded", time.Since(start))
-
-	return true
 }
 
 func PrintDoc() {
