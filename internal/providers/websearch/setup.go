@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -136,9 +137,9 @@ func Activate(identifier, action string, query string, args string) {
 				return
 			}
 
-			q = strings.ReplaceAll(config.Engines[i].URL, "%CLIPBOARD%", url.QueryEscape(clipboard))
+			q = strings.ReplaceAll(os.ExpandEnv(config.Engines[i].URL), "%CLIPBOARD%", url.QueryEscape(clipboard))
 		} else {
-			q = strings.ReplaceAll(config.Engines[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
+			q = strings.ReplaceAll(os.ExpandEnv(config.Engines[i].URL), "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
 		}
 
 		run(query, identifier, q)
