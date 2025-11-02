@@ -4,24 +4,25 @@ tmp_dir = "tmp"
 [build]
 # Just plain old shell command. You could use `make` as well.
 cmd = "cd cmd/elephant && go build -o /tmp/elephant-air ."
+full_bin = "ELEPHANT_DEV=true /tmp/elephant-air"
 pre_cmd = [
-  "mkdir -p ~/.config/elephant/providers",
-  "cd internal/providers/files && go build -buildmode=plugin && cp files.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/desktopapplications && go build -buildmode=plugin && cp desktopapplications.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/clipboard && go build -buildmode=plugin && cp clipboard.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/runner && go build -buildmode=plugin && cp runner.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/symbols && go build -buildmode=plugin && cp symbols.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/calc && go build -buildmode=plugin && cp calc.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/providerlist && go build -buildmode=plugin && cp providerlist.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/menus && go build -buildmode=plugin && cp menus.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/websearch && go build -buildmode=plugin && cp websearch.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/archlinuxpkgs && go build -buildmode=plugin && cp archlinuxpkgs.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/todo && go build -buildmode=plugin && cp todo.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/unicode && go build -buildmode=plugin && cp unicode.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/bluetooth && go build -buildmode=plugin && cp bluetooth.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/windows && go build -buildmode=plugin && cp windows.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/snippets && go build -buildmode=plugin && cp snippets.so /home/andrej/.config/elephant/providers/",
-  "cd internal/providers/nirisessions && go build -buildmode=plugin && cp nirisessions.so /home/andrej/.config/elephant/providers/",
+  "mkdir -p /tmp/elephant/providers",
+  "cd internal/providers/files && go build -buildmode=plugin && cp files.so /tmp/elephant/providers/",
+  "cd internal/providers/desktopapplications && go build -buildmode=plugin && cp desktopapplications.so /tmp/elephant/providers/",
+  "cd internal/providers/clipboard && go build -buildmode=plugin && cp clipboard.so /tmp/elephant/providers/",
+  "cd internal/providers/runner && go build -buildmode=plugin && cp runner.so /tmp/elephant/providers/",
+  "cd internal/providers/symbols && go build -buildmode=plugin && cp symbols.so /tmp/elephant/providers/",
+  "cd internal/providers/calc && go build -buildmode=plugin && cp calc.so /tmp/elephant/providers/",
+  "cd internal/providers/providerlist && go build -buildmode=plugin && cp providerlist.so /tmp/elephant/providers/",
+  "cd internal/providers/menus && go build -buildmode=plugin && cp menus.so /tmp/elephant/providers/",
+  "cd internal/providers/websearch && go build -buildmode=plugin && cp websearch.so /tmp/elephant/providers/",
+  "cd internal/providers/archlinuxpkgs && go build -buildmode=plugin && cp archlinuxpkgs.so /tmp/elephant/providers/",
+  "cd internal/providers/todo && go build -buildmode=plugin && cp todo.so /tmp/elephant/providers/",
+  "cd internal/providers/unicode && go build -buildmode=plugin && cp unicode.so /tmp/elephant/providers/",
+  "cd internal/providers/bluetooth && go build -buildmode=plugin && cp bluetooth.so /tmp/elephant/providers/",
+  "cd internal/providers/windows && go build -buildmode=plugin && cp windows.so /tmp/elephant/providers/",
+  "cd internal/providers/snippets && go build -buildmode=plugin && cp snippets.so /tmp/elephant/providers/",
+  "cd internal/providers/nirisessions && go build -buildmode=plugin && cp nirisessions.so /tmp/elephant/providers/",
 ]
 # Binary file yields from `cmd`.
 bin = "/tmp/elephant-air"

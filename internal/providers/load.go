@@ -42,6 +42,10 @@ func Load(setup bool) {
 	Providers = make(map[string]Provider)
 	QueryProviders = make(map[uint32][]string)
 
+	if os.Getenv("ELEPHANT_DEV") == "true" {
+		dirs = []string{"/tmp/elephant/providers"}
+	}
+
 	for _, v := range dirs {
 		if !common.FileExists(v) {
 			continue
