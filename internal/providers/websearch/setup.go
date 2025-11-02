@@ -100,6 +100,10 @@ func Setup() {
 	})
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

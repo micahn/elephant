@@ -126,6 +126,10 @@ func Setup() {
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
 }
 
+func Available() bool {
+	return true
+}
+
 func parseRegexp() {
 	for _, v := range config.Blacklist {
 		r, err := regexp.Compile(v)

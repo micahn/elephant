@@ -117,6 +117,22 @@ func Setup() {
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
 }
 
+func Available() bool {
+	p, err := exec.LookPath("wl-paste")
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "wl-clipboard not found. disabling")
+		return false
+	}
+
+	p, err = exec.LookPath("identify")
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "imagemagick not found. disabling")
+		return false
+	}
+
+	return true
+}
+
 func cleanup() {
 	for {
 		time.Sleep(time.Duration(config.AutoCleanup) * time.Minute)

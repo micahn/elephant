@@ -58,17 +58,6 @@ type HistoryItem struct {
 var history = []HistoryItem{}
 
 func Setup() {
-	p, err := exec.LookPath("qalc")
-	if err != nil {
-		slog.Error(Name, "setup", err)
-		return
-	}
-
-	if p == "" {
-		slog.Error(Name, "setup", "qalc not installed")
-		return
-	}
-
 	config = &Config{
 		Config: common.Config{
 			Icon: "accessories-calculator",
@@ -87,7 +76,7 @@ func Setup() {
 
 	// this is to update exchange rate data
 	cmd := exec.Command("qalc", "-e", "1+1")
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		slog.Error(Name, "init", err)
 	} else {
@@ -95,6 +84,17 @@ func Setup() {
 			cmd.Wait()
 		}()
 	}
+}
+
+func Available() bool {
+	p, err := exec.LookPath("qalc")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "libqalculate not found. disabling")
+		return false
+	}
+
+	return true
 }
 
 func PrintDoc() {

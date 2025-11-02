@@ -38,6 +38,10 @@ func PrintDoc() {
 
 func Setup() {}
 
+func Available() bool {
+	return true
+}
+
 const (
 	ActionGoParent = "menus:parent"
 	ActionOpen     = "menus:open"

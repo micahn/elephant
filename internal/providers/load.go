@@ -18,6 +18,7 @@ import (
 
 type Provider struct {
 	Name       *string
+	Available  func() bool
 	PrintDoc   func()
 	NamePretty *string
 	Setup      func()
@@ -94,6 +95,11 @@ func Load(setup bool) {
 					slog.Error("providers", "load", err, "provider", path)
 				}
 
+				availableFunc, err := p.Lookup("Available")
+				if err != nil {
+					slog.Error("providers", "load", err, "provider", path)
+				}
+
 				queryFunc, err := p.Lookup("Query")
 				if err != nil {
 					slog.Error("providers", "load", err, "provider", path)
@@ -122,23 +128,30 @@ func Load(setup bool) {
 					Query:      queryFunc.(func(net.Conn, string, bool, bool, uint8) []*pb.QueryResponse_Item),
 					NamePretty: namePretty.(*string),
 					PrintDoc:   printDocFunc.(func()),
+					Available:  availableFunc.(func() bool),
 				}
 
+				available := provider.Available()
+
 				go func() {
-					if setup {
+					if setup && available {
 						provider.Setup()
 					}
 
-					mut.Lock()
-					Providers[*provider.Name] = provider
-					mut.Unlock()
+					if available {
+						mut.Lock()
+						Providers[*provider.Name] = provider
+						mut.Unlock()
+					}
 
 					slog.Info("providers", "loaded", *provider.Name)
 				}()
 
-				mut.Lock()
-				have = append(have, filepath.Base(path))
-				mut.Unlock()
+				if available {
+					mut.Lock()
+					have = append(have, filepath.Base(path))
+					mut.Unlock()
+				}
 			}
 
 			return err

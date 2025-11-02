@@ -176,6 +176,17 @@ func Setup() {
 	slog.Info(Name, "time", time.Since(start))
 }
 
+func Available() bool {
+	p, err := exec.LookPath("fd")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "fd not found. disabling.")
+		return false
+	}
+
+	return true
+}
+
 func handleDelete(deleteChan chan string) {
 	timer := time.NewTimer(time.Second * 2)
 	do := false

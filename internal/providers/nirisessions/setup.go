@@ -65,6 +65,15 @@ func Setup() {
 	common.LoadConfig(Name, config)
 }
 
+func Available() bool {
+	if os.Getenv("XDG_CURRENT_DESKTOP") == "niri" {
+		return true
+	}
+
+	slog.Info(Name, "available", "not a niri session. disabling")
+	return false
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

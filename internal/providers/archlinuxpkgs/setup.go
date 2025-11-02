@@ -73,6 +73,10 @@ func Setup() {
 	go refresh()
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

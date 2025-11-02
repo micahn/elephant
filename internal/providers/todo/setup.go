@@ -197,6 +197,10 @@ func Setup() {
 	go notify()
 }
 
+func Available() bool {
+	return true
+}
+
 func notify() {
 	for {
 		now := time.Now().Truncate(time.Minute)

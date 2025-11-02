@@ -58,6 +58,17 @@ func Setup() {
 	slog.Info(Name, "loaded", time.Since(start))
 }
 
+func Available() bool {
+	p, err := exec.LookPath("bluetoothctl")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "bluetoothctl not found. disabling")
+		return false
+	}
+
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

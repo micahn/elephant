@@ -55,6 +55,10 @@ func Setup() {
 	common.LoadConfig(Name, config)
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

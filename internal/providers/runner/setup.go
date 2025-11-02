@@ -126,6 +126,10 @@ func Setup() {
 	slog.Info(Name, "executables", len(items), "time", time.Since(start))
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

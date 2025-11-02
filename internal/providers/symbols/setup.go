@@ -57,6 +57,10 @@ func Setup() {
 	slog.Info(Name, "symbols/emojis", len(symbols), "time", time.Since(start))
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()

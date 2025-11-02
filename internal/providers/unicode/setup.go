@@ -70,6 +70,10 @@ func Setup() {
 	slog.Info(Name, "loaded", time.Since(start))
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()
