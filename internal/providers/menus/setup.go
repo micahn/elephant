@@ -66,6 +66,14 @@ func Activate(identifier, action string, query string, args string) {
 		var e common.Entry
 		var menu *common.Menu
 
+		defer func() {
+			if e.Menu != "" && e.Value != "" {
+				common.LastMenuValueMut.Lock()
+				common.LastMenuValue[e.Menu] = e.Value
+				common.LastMenuValueMut.Unlock()
+			}
+		}()
+
 		identifier = strings.TrimPrefix(identifier, "menus:")
 
 		openmenu := false
@@ -132,9 +140,13 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if after, ok := strings.CutPrefix(run, "lua:"); ok {
+			if menu == nil {
+				return
+			}
+
 			state := common.NewLuaState(menu.Name, menu.LuaString)
 
-			if menu != nil && state != nil {
+			if state != nil {
 				functionName := after
 
 				if err := state.CallByParam(lua.P{
@@ -149,11 +161,7 @@ func Activate(identifier, action string, query string, args string) {
 					h.Save(query, identifier)
 				}
 			} else {
-				menuName := "unknown"
-				if menu != nil {
-					menuName = menu.Name
-				}
-				slog.Error(Name, "no lua state available for menu", menuName)
+				slog.Error(Name, "no lua state available for menu", menu.Name)
 			}
 			return
 		}

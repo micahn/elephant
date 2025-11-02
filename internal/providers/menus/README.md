@@ -144,6 +144,12 @@ value = "https://www.amazon.de/gp/video/storefront/"
 
 By default, the Lua script will be called on every empty query. If you don't want this behaviour, but instead want to cache the query once, you can set `Cache=true` in the menu's config.
 
+You can retrieve the last value of a menu by calling in `GetEntries`:
+
+```lua
+local value = lastMenuValue(<MENUNAME>)
+```
+
 ```lua
 Name = "luatest"
 NamePretty = "Lua Test"

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/adrg/xdg"
 	"github.com/charlievieth/fastwalk"
@@ -62,8 +63,29 @@ func NewLuaState(name, data string) *lua.LState {
 	return l
 }
 
+var (
+	LastMenuValue    = make(map[string]string)
+	LastMenuValueMut sync.Mutex
+)
+
+func GetLastMenuValue(L *lua.LState) int {
+	str := L.CheckString(1)
+
+	LastMenuValueMut.Lock()
+	if result, ok := LastMenuValue[str]; ok {
+		L.Push(lua.LString(result))
+	} else {
+		L.Push(lua.LString(""))
+	}
+	LastMenuValueMut.Unlock()
+
+	return 1
+}
+
 func (m *Menu) CreateLuaEntries() {
 	state := NewLuaState(m.Name, m.LuaString)
+
+	state.SetGlobal("lastMenuValue", state.NewFunction(GetLastMenuValue))
 
 	if state == nil {
 		slog.Error(m.Name, "CreateLuaEntries", "no lua state")
