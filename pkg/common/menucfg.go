@@ -40,6 +40,7 @@ type Menu struct {
 	HistoryWhenEmpty     bool              `toml:"history_when_empty" desc:"consider history when query is empty"`
 	MinScore             int32             `toml:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 	Parent               string            `toml:"parent" desc:"defines the parent menu" default:""`
+	SubMenu              string            `toml:"submenu" desc:"defines submenu to trigger on activation" default:""`
 
 	// internal
 	LuaString string
@@ -127,6 +128,10 @@ func (m *Menu) CreateLuaEntries() {
 					entry.Subtext = string(subtext.(lua.LString))
 				}
 
+				if submenu := item.RawGetString("SubMenu"); submenu != lua.LNil {
+					entry.SubMenu = string(submenu.(lua.LString))
+				}
+
 				if val := item.RawGetString("Value"); val != lua.LNil {
 					entry.Value = string(val.(lua.LString))
 				}
@@ -159,8 +164,17 @@ func (m *Menu) CreateLuaEntries() {
 					}
 				}
 
-				entry.Identifier = entry.CreateIdentifier()
+				identifier := entry.CreateIdentifier()
+
 				entry.Menu = m.Name
+
+				if entry.SubMenu != "" {
+					entry.Identifier = fmt.Sprintf("menus:%s:%s:%s", entry.SubMenu, entry.Menu, identifier)
+				} else if m.SubMenu != "" {
+					entry.Identifier = fmt.Sprintf("menus:%s:%s:%s", m.SubMenu, entry.Menu, identifier)
+				} else {
+					entry.Identifier = fmt.Sprintf("%s:%s", entry.Menu, identifier)
+				}
 
 				if entry.Preview != "" && entry.PreviewType == "" {
 					entry.PreviewType = "file"
@@ -193,7 +207,7 @@ type Entry struct {
 }
 
 func (e Entry) CreateIdentifier() string {
-	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s", e.Menu, e.Text, e.Value))
+	md5 := md5.Sum(fmt.Appendf([]byte(""), "%s%s%s%s", e.Menu, e.Text, e.Value, e.Subtext))
 	return hex.EncodeToString(md5[:])
 }
 
@@ -348,6 +362,10 @@ func createLuaMenu(path string) {
 		m.Parent = string(val.(lua.LString))
 	}
 
+	if val := state.GetGlobal("SubMenu"); val != lua.LNil {
+		m.SubMenu = string(val.(lua.LString))
+	}
+
 	if m.Cache {
 		m.CreateLuaEntries()
 	}
@@ -375,10 +393,14 @@ func createTomlMenu(path string) {
 
 	for k, v := range m.Entries {
 		m.Entries[k].Menu = m.Name
-		m.Entries[k].Identifier = m.Entries[k].CreateIdentifier()
+		identifier := m.Entries[k].CreateIdentifier()
 
 		if v.SubMenu != "" {
-			m.Entries[k].Identifier = fmt.Sprintf("menus:%s", v.SubMenu)
+			m.Entries[k].Identifier = fmt.Sprintf("menus:%s:%s:%s", v.SubMenu, v.Menu, identifier)
+		} else if m.SubMenu != "" {
+			m.Entries[k].Identifier = fmt.Sprintf("menus:%s:%s:%s", m.SubMenu, v.Menu, identifier)
+		} else {
+			m.Entries[k].Identifier = fmt.Sprintf("%s:%s", v.Menu, identifier)
 		}
 	}
 

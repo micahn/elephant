@@ -74,22 +74,21 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		}()
 
-		identifier = strings.TrimPrefix(identifier, "menus:")
+		submenu := ""
+		m := ""
 
-		openmenu := false
+		if strings.HasPrefix(identifier, "menus:") {
+			splits := strings.Split(identifier, ":")
+			submenu = splits[1]
+			m = splits[2]
+		} else {
+			m = strings.Split(identifier, ":")[0]
+		}
 
 		terminal := false
 
-		for _, v := range common.Menus {
-			if identifier == v.Name {
-				menu = v
-				openmenu = true
-				break
-			}
-
-			process := v.Entries
-
-			for _, entry := range process {
+		if v, ok := common.Menus[m]; ok {
+			for _, entry := range v.Entries {
 				if identifier == entry.Identifier {
 					menu = v
 					e = entry
@@ -101,8 +100,8 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		}
 
-		if openmenu {
-			handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, menu.Name)
+		if submenu != "" {
+			handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, submenu)
 			return
 		}
 
