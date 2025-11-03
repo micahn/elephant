@@ -31,7 +31,7 @@ func init() {
 	}
 }
 
-func Query(data string, async bool) {
+func Query(data string, async, j bool) {
 	v := strings.Split(data, ";")
 	maxresults, _ := strconv.Atoi(v[2])
 
@@ -100,6 +100,15 @@ func Query(data string, async bool) {
 			panic(err)
 		}
 
-		fmt.Println(resp)
+		if !j {
+			fmt.Println(resp)
+		} else {
+			out, err := json.Marshal(resp)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Println(string(out))
+		}
 	}
 }

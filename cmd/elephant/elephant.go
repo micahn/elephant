@@ -174,6 +174,12 @@ WantedBy=graphical-session.target
 						DefaultText: "run async, close manually",
 						Usage:       "use to not close after querying, in case of async querying.",
 					},
+					&cli.BoolFlag{
+						Name:        "json",
+						Category:    "",
+						DefaultText: "output as json",
+						Usage:       "if you want json. use this.",
+					},
 				},
 				Arguments: []cli.Argument{
 					&cli.StringArg{
@@ -181,7 +187,7 @@ WantedBy=graphical-session.target
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					client.Query(cmd.StringArg("content"), cmd.Bool("async"))
+					client.Query(cmd.StringArg("content"), cmd.Bool("async"), cmd.Bool("json"))
 
 					return nil
 				},

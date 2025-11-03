@@ -71,5 +71,5 @@ func (a *StateRequest) Handle(format uint8, cid uint32, conn net.Conn, data []by
 		return
 	}
 
-	writeStatus(QueryDone, conn)
+	writeStatus(StatusDone, conn)
 }
