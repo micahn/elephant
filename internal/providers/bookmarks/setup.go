@@ -25,7 +25,7 @@ var (
 	bookmarks         = []Bookmark{}
 	r                 *git.Repository
 	w                 *git.Worktree
-	availableBrowsers = make(map[string]struct{})
+	availableBrowsers = make(map[string]string)
 	availableCats     = make(map[string]struct{})
 )
 
@@ -49,6 +49,7 @@ type Category struct {
 type Browser struct {
 	Name    string `koanf:"name" desc:"name of the browser" default:""`
 	Command string `koanf:"command" desc:"command to launch the browser" default:""`
+	Icon    string `koanf:"icon" desc:"icon to use" default:""`
 }
 
 const (
@@ -252,7 +253,7 @@ func Setup() {
 	}
 
 	for _, v := range config.Browsers {
-		availableBrowsers[v.Name] = struct{}{}
+		availableBrowsers[v.Name] = v.Icon
 	}
 
 	for _, v := range config.Categories {
@@ -599,6 +600,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 
 		searchText := b.URL + " " + b.Description
 
+		e.Icon = config.Icon
 		e.Provider = Name
 		e.Identifier = fmt.Sprintf("%d", i)
 		e.Text = b.Description
@@ -629,7 +631,11 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		}
 
 		if b.Browser != "" {
-			if _, ok := availableBrowsers[b.Browser]; ok {
+			if val, ok := availableBrowsers[b.Browser]; ok {
+				if val != "" {
+					e.Icon = val
+				}
+
 				if e.Subtext != "" {
 					e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, b.Browser)
 				} else {
