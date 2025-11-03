@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -79,26 +80,75 @@ func SetupGit(provider, url string) (string, *git.Worktree, *git.Repository) {
 	return folder, w, r
 }
 
+type PushData struct {
+	provider string
+	file     string
+	w        *git.Worktree
+	r        *git.Repository
+}
+
+var pushChan chan PushData
+
+func init() {
+	pushChan = make(chan PushData)
+
+	go func() {
+		timer := time.NewTimer(time.Second * 5)
+		do := false
+
+		var mu sync.Mutex
+		work := make(map[string]PushData)
+
+		for {
+			select {
+			case data := <-pushChan:
+				mu.Lock()
+				work[fmt.Sprintf("%s%s", data.provider, data.file)] = data
+				mu.Unlock()
+				timer.Reset(time.Second * 5)
+				do = true
+			case <-timer.C:
+				if do {
+					mu.Lock()
+					for k, v := range work {
+						_, err := v.w.Add(v.file)
+						if err != nil {
+							slog.Error(v.provider, "gitadd", err)
+							continue
+						}
+
+						_, err = v.w.Commit("elephant", &git.CommitOptions{})
+						if err != nil {
+							slog.Error(v.provider, "commit", err)
+							continue
+						}
+
+						err = v.r.Push(&git.PushOptions{})
+						if err != nil {
+							slog.Error(v.provider, "push", err)
+							continue
+						}
+
+						delete(work, k)
+					}
+					mu.Unlock()
+
+					do = false
+				}
+			}
+		}
+	}()
+}
+
 // TODO: this needs better commit messages somehow...
 func GitPush(provider, file string, w *git.Worktree, r *git.Repository) {
 	gitMu.Lock()
 	defer gitMu.Unlock()
 
-	_, err := w.Add(file)
-	if err != nil {
-		slog.Error(provider, "gitadd", err)
-		return
-	}
-
-	_, err = w.Commit("elephant", &git.CommitOptions{})
-	if err != nil {
-		slog.Error(provider, "commit", err)
-		return
-	}
-
-	err = r.Push(&git.PushOptions{})
-	if err != nil {
-		slog.Error(provider, "push", err)
-		return
+	pushChan <- PushData{
+		provider: provider,
+		file:     file,
+		w:        w,
+		r:        r,
 	}
 }
