@@ -22,6 +22,7 @@ import (
 const (
 	QueryDone          = 255
 	QueryNoResults     = 254
+	StatusDone         = 253
 	QueryItem          = 0
 	QueryAsyncItem     = 1
 	ActivationFinished = 2
