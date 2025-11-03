@@ -598,8 +598,6 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 
 		e.Score = 999_999 - int32(i)
 
-		searchText := b.URL + " " + b.Description
-
 		e.Icon = config.Icon
 		e.Provider = Name
 		e.Identifier = fmt.Sprintf("%d", i)
@@ -623,7 +621,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		}
 
 		if query != "" {
-			e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, searchText, exact)
+			_, e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start, _ = calcScore(query, b, exact)
 		}
 
 		if e.Score > highestScore {
@@ -687,4 +685,34 @@ func State(provider string) *pb.ProviderStateResponse {
 	return &pb.ProviderStateResponse{
 		Actions: []string{ActionImport},
 	}
+}
+
+func calcScore(q string, d Bookmark, exact bool) (string, int32, []int32, int32, bool) {
+	var scoreRes int32
+	var posRes []int32
+	var startRes int32
+	var match string
+	var modifier int32
+
+	toSearch := []string{d.Description, d.URL, d.Category}
+
+	for k, v := range toSearch {
+		score, pos, start := common.FuzzyScore(q, v, exact)
+
+		if score > scoreRes {
+			scoreRes = score
+			posRes = pos
+			startRes = start
+			match = v
+			modifier = int32(k)
+		}
+	}
+
+	if scoreRes == 0 {
+		return "", 0, nil, 0, false
+	}
+
+	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
+
+	return match, scoreRes, posRes, startRes, true
 }
