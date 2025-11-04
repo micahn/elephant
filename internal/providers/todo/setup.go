@@ -28,8 +28,7 @@ var (
 	config     *Config
 	items      = []Item{}
 	parser     *naturaltime.Parser
-	r          *git.Repository
-	w          *git.Worktree
+	isGit      bool
 )
 
 //go:embed README.md
@@ -44,6 +43,24 @@ type Config struct {
 	Location          string     `koanf:"location" desc:"location of the CSV file" default:"elephant cache dir"`
 	TimeFormat        string     `koanf:"time_format" desc:"format of the time. Look at https://go.dev/src/time/format.go for the layout." default:"02-Jan 15:04"`
 	Notification      `koanf:",squash"`
+	w                 *git.Worktree
+	r                 *git.Repository
+}
+
+func (config *Config) SetLocation(val string) {
+	config.Location = val
+}
+
+func (config *Config) URL() string {
+	return config.Location
+}
+
+func (config *Config) SetWorktree(val *git.Worktree) {
+	config.w = val
+}
+
+func (config *Config) SetRepository(val *git.Repository) {
+	config.r = val
 }
 
 type Category struct {
@@ -131,8 +148,8 @@ func saveItems() {
 		slog.Error(Name, "writefile", err)
 	}
 
-	if w != nil {
-		go common.GitPush(Name, "todo.csv", w, r)
+	if config.w != nil {
+		go common.GitPush(Name, "todo.csv", config.w, config.r)
 	}
 }
 
@@ -198,23 +215,20 @@ func Setup() {
 	common.LoadConfig(Name, config)
 
 	if strings.HasPrefix(config.Location, "https://") {
-		loc, wt, re := common.SetupGit(Name, config.Location)
-		if loc != "" {
-			config.Location = loc
-		}
-
-		if wt == nil || re == nil {
-			config.Location = ""
-			slog.Error(Name, "error", "couldn't setup git.")
-			return
-		}
-
-		w = wt
-		r = re
+		isGit = true
 	}
 
-	if !migrateGOBtoCSV() {
+	ec := common.GetElephantConfig()
+
+	if !ec.GitOnDemand {
+		common.SetupGit(Name, config)
 		loadItems()
+	}
+
+	if !isGit {
+		if !migrateGOBtoCSV() {
+			loadItems()
+		}
 	}
 
 	go notify()
@@ -390,7 +404,7 @@ func migrateGOBtoCSV() bool {
 func loadItems() {
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
-	if config.Location != "" {
+	if isGit {
 		file = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
 	}
 
@@ -444,6 +458,11 @@ func loadItems() {
 }
 
 func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
+	if isGit && config.r == nil {
+		common.SetupGit(Name, config)
+		loadItems()
+	}
+
 	entries := []*pb.QueryResponse_Item{}
 	urgent := time.Now().Add(time.Duration(config.UrgentTimeFrame) * time.Minute)
 

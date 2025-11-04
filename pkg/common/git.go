@@ -12,72 +12,101 @@ import (
 	"github.com/go-git/go-git/v6"
 )
 
-var gitMu sync.Mutex
+var (
+	gitMu      sync.Mutex
+	setupRepos = make(map[string]Repo)
+)
 
-func SetupGit(provider, url string) (string, *git.Worktree, *git.Repository) {
+type Repo struct {
+	w *git.Worktree
+	r *git.Repository
+}
+
+type Gittable interface {
+	SetLocation(string)
+	URL() string
+	SetWorktree(*git.Worktree)
+	SetRepository(*git.Repository)
+}
+
+func SetupGit(provider string, cfg Gittable) {
 	gitMu.Lock()
 	defer gitMu.Unlock()
 
 	x := 0
-	base := filepath.Base(url)
+	base := filepath.Base(cfg.URL())
 	folder := common.CacheFile(base)
 	var w *git.Worktree
 	var r *git.Repository
+	var pull bool
 
-	for x < 15 {
-		x++
+	if val, ok := setupRepos[cfg.URL()]; !ok {
+		for x < 15 {
+			x++
 
-		time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Second)
 
-		slog.Info(provider, "gitsetup", "trying to setup git...")
+			slog.Info(provider, "gitsetup", "trying to setup git...")
 
-		// clone
-		if !common.FileExists(folder) {
+			// clone
+			if !common.FileExists(folder) {
+				var err error
+
+				url := cfg.URL()
+				if strings.HasPrefix(url, "https://github.com/") {
+					url = strings.Replace(url, "https://github.com/", "git@github.com:", 1)
+				}
+
+				r, err = git.PlainClone(folder, &git.CloneOptions{
+					URL:               url,
+					RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+				})
+				if err != nil {
+					slog.Debug(provider, "gitclone", err)
+					continue
+				}
+			} else {
+				var err error
+				r, err = git.PlainOpen(folder)
+				if err != nil {
+					slog.Debug(provider, "gitclone", err)
+					continue
+				}
+
+				pull = true
+			}
+
 			var err error
 
-			url := url
-			if strings.HasPrefix(url, "https://github.com/") {
-				url = strings.Replace(url, "https://github.com/", "git@github.com:", 1)
-			}
-
-			r, err = git.PlainClone(folder, &git.CloneOptions{
-				URL:               url,
-				RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-			})
+			w, err = r.Worktree()
 			if err != nil {
-				slog.Debug(provider, "gitclone", err)
+				slog.Debug(provider, "gitpull", err)
 				continue
 			}
-		} else {
-			var err error
-			r, err = git.PlainOpen(folder)
-			if err != nil {
-				slog.Debug(provider, "gitclone", err)
-				continue
+
+			if pull {
+				err = w.Pull(&git.PullOptions{RemoteName: "origin"})
+				if err != nil {
+					slog.Info(provider, "gitpull", err)
+
+					if err.Error() != "already up-to-date" {
+						continue
+					}
+				}
 			}
-		}
 
-		var err error
-
-		w, err = r.Worktree()
-		if err != nil {
-			slog.Debug(provider, "gitpull", err)
-			continue
-		}
-
-		err = w.Pull(&git.PullOptions{RemoteName: "origin"})
-		if err != nil {
-			slog.Info(provider, "gitpull", err)
-
-			if err.Error() != "already up-to-date" {
-				continue
+			setupRepos[cfg.URL()] = Repo{
+				w: w,
+				r: r,
 			}
-		}
 
-		break
+			break
+		}
+	} else {
+		cfg.SetLocation(folder)
+		cfg.SetRepository(val.r)
+		cfg.SetWorktree(val.w)
 	}
-
-	return folder, w, r
 }
 
 type PushData struct {
@@ -130,6 +159,7 @@ func init() {
 						}
 
 						delete(work, k)
+						slog.Info(v.provider, "git", "pushed to repository")
 					}
 					mu.Unlock()
 

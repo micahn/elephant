@@ -23,10 +23,9 @@ var (
 	NamePretty        = "Bookmarks"
 	config            *Config
 	bookmarks         = []Bookmark{}
-	r                 *git.Repository
-	w                 *git.Worktree
 	availableBrowsers = make(map[string]string)
 	availableCats     = make(map[string]struct{})
+	isGit             bool
 )
 
 //go:embed README.md
@@ -39,6 +38,24 @@ type Config struct {
 	Categories         []Category `koanf:"categories" desc:"categories" default:""`
 	Browsers           []Browser  `koanf:"browsers" desc:"browsers for opening bookmarks" default:""`
 	SetBrowserOnImport bool       `koanf:"set_browser_on_import" desc:"set browser name on imported bookmarks" default:"false"`
+	w                  *git.Worktree
+	r                  *git.Repository
+}
+
+func (config *Config) SetLocation(val string) {
+	config.Location = val
+}
+
+func (config *Config) URL() string {
+	return config.Location
+}
+
+func (config *Config) SetWorktree(val *git.Worktree) {
+	config.w = val
+}
+
+func (config *Config) SetRepository(val *git.Repository) {
+	config.r = val
 }
 
 type Category struct {
@@ -181,15 +198,15 @@ func saveBookmarks() {
 		slog.Error(Name, "writefile", err)
 	}
 
-	if w != nil {
-		go common.GitPush(Name, "bookmarks.csv", w, r)
+	if config.w != nil {
+		go common.GitPush(Name, "bookmarks.csv", config.w, config.r)
 	}
 }
 
 func loadBookmarks() {
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
-	if config.Location != "" {
+	if isGit {
 		file = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
 	}
 
@@ -238,18 +255,7 @@ func Setup() {
 	common.LoadConfig(Name, config)
 
 	if strings.HasPrefix(config.Location, "https://") {
-		loc, wt, re := common.SetupGit(Name, config.Location)
-		if loc != "" {
-			config.Location = loc
-		}
-
-		if wt == nil || re == nil {
-			config.Location = ""
-			slog.Error(Name, "error", "couldn't setup git, falling back to default")
-		}
-
-		w = wt
-		r = re
+		isGit = true
 	}
 
 	for _, v := range config.Browsers {
@@ -260,7 +266,16 @@ func Setup() {
 		availableCats[v.Name] = struct{}{}
 	}
 
-	loadBookmarks()
+	ec := common.GetElephantConfig()
+
+	if !ec.GitOnDemand {
+		common.SetupGit(Name, config)
+		loadBookmarks()
+	}
+
+	if !isGit {
+		loadBookmarks()
+	}
 }
 
 func Available() bool {
@@ -578,6 +593,11 @@ func importBrowserBookmarks() {
 }
 
 func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
+	if isGit && config.r == nil {
+		common.SetupGit(Name, config)
+		loadBookmarks()
+	}
+
 	entries := []*pb.QueryResponse_Item{}
 	var highestScore int32
 
