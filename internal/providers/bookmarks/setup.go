@@ -245,7 +245,7 @@ func Setup() {
 	config = &Config{
 		Config: common.Config{
 			Icon:     "user-bookmarks",
-			MinScore: 100,
+			MinScore: 20,
 		},
 		CreatePrefix:       "",
 		Location:           "",
@@ -672,11 +672,13 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			}
 		}
 
-		entries = append(entries, e)
+		if query == "" || e.Score > config.MinScore {
+			entries = append(entries, e)
+		}
 	}
 
 	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
-		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
+		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix) || highestScore < config.MinScore) {
 			b := Bookmark{}
 			b.fromQuery(query)
 
