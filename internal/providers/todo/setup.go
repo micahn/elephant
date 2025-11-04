@@ -221,7 +221,7 @@ func Setup() {
 
 	ec := common.GetElephantConfig()
 
-	if !ec.GitOnDemand {
+	if !ec.GitOnDemand && isGit {
 		common.SetupGit(Name, config)
 		loadItems()
 	}
