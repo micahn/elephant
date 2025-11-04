@@ -566,7 +566,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	}
 
 	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
-		if (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
+		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix)) || highestScore < config.MinScore {
 			i := Item{}
 			i.fromQuery(query)
 
