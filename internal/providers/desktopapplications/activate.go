@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +27,7 @@ const (
 	ActionNewInstance = "new_instance"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case ActionPinUp:
 		movePin(identifier, false)

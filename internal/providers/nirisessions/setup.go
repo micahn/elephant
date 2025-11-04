@@ -132,7 +132,7 @@ func monitor(appid string, res chan int) {
 	}
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	i, _ := strconv.Atoi(identifier)
 
 	s := config.Sessions[i]

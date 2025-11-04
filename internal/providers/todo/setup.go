@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/abenz1267/elephant/v2/internal/comm/handlers"
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
@@ -302,7 +303,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
 		if after != "" {
 			store(after)
@@ -334,14 +335,23 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		items[i].Category = nextCategory
+
+		updated := itemToEntry(time.Now(), i, items[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionDelete:
 		items = append(items[:i], items[i+1:]...)
 	case ActionMarkActive:
 		items[i].State = StateActive
 		items[i].Started = time.Now()
+
+		updated := itemToEntry(time.Now(), i, items[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionMarkInactive:
 		items[i].State = StatePending
 		items[i].Started = time.Time{}
+
+		updated := itemToEntry(time.Now(), i, items[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionMarkDone:
 		if items[i].State == StateDone {
 			items[i].State = StatePending
@@ -350,6 +360,9 @@ func Activate(identifier, action string, query string, args string) {
 			items[i].State = StateDone
 			items[i].Finished = time.Now()
 		}
+
+		updated := itemToEntry(time.Now(), i, items[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionClear:
 		n := 0
 		for _, x := range items {
@@ -473,6 +486,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	for _, v := range config.Categories {
 		if strings.HasPrefix(query, v.Prefix) {
 			category = v
+			query = strings.TrimPrefix(query, v.Prefix)
 		}
 	}
 
@@ -481,62 +495,10 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			continue
 		}
 
-		e := &pb.QueryResponse_Item{}
-
-		if v.State == StateDone {
-			e.Score = 100_000 - int32(i)
-		} else {
-			e.Score = 999_999 - int32(i)
-		}
-
-		actions := []string{ActionDelete}
-
-		switch v.State {
-		case StateActive:
-			actions = []string{ActionDelete, ActionMarkDone, ActionMarkInactive}
-		case StateDone:
-			actions = []string{ActionDelete, ActionMarkInactive}
-		case StatePending, StateUrgent:
-			actions = []string{ActionDelete, ActionMarkDone, ActionMarkActive}
-		case StateCreating:
-			actions = []string{ActionSave}
-		}
-
-		actions = append(actions, ActionChangeCategory)
-
-		e.Provider = Name
-		e.Identifier = fmt.Sprintf("%d", i)
-		e.Text = v.Text
-		e.Actions = actions
-		e.State = []string{v.State}
-		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
-
-		if !v.Finished.IsZero() {
-			if !v.Started.IsZero() {
-				duration := v.Finished.Sub(v.Started)
-				hours := int(duration.Hours())
-				minutes := int(duration.Minutes()) % 60
-
-				e.Subtext = fmt.Sprintf("Started: %s, Finished: %s, Duration: %s", v.Started.Format(config.TimeFormat), v.Finished.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
-			} else {
-				e.Subtext = fmt.Sprintf("Finished: %s", v.Finished.Format(config.TimeFormat))
-			}
-		} else if !v.Started.IsZero() {
-			duration := time.Since(v.Started)
-			hours := int(duration.Hours())
-			minutes := int(duration.Minutes()) % 60
-
-			e.Subtext = fmt.Sprintf("Started: %s, Ongoing: %s", v.Started.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
-		} else if !v.Scheduled.IsZero() {
-			e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format(config.TimeFormat))
-		}
+		e := itemToEntry(urgent, i, v)
 
 		if query != "" {
 			e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
-		}
-
-		if !v.Scheduled.IsZero() && v.Scheduled.Before(urgent) && v.State != StateDone && v.State != StateActive {
-			e.State = []string{StateUrgent}
 		}
 
 		if slices.Contains(e.State, StateActive) && query == "" {
@@ -550,16 +512,6 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 
 		if e.Score > highestScore {
 			highestScore = e.Score
-		}
-
-		e.State = append(e.State, v.Urgency)
-
-		if v.Category != "" {
-			if e.Subtext != "" {
-				e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, v.Category)
-			} else {
-				e.Subtext = v.Category
-			}
 		}
 
 		if query == "" || e.Score > config.MinScore {
@@ -606,4 +558,72 @@ func State(provider string) *pb.ProviderStateResponse {
 		}
 	}
 	return &pb.ProviderStateResponse{}
+}
+
+func itemToEntry(urgent time.Time, i int, v Item) *pb.QueryResponse_Item {
+	e := &pb.QueryResponse_Item{}
+
+	if v.State == StateDone {
+		e.Score = 100_000 - int32(i)
+	} else {
+		e.Score = 999_999 - int32(i)
+	}
+
+	actions := []string{ActionDelete}
+
+	switch v.State {
+	case StateActive:
+		actions = []string{ActionDelete, ActionMarkDone, ActionMarkInactive}
+	case StateDone:
+		actions = []string{ActionDelete, ActionMarkInactive}
+	case StatePending, StateUrgent:
+		actions = []string{ActionDelete, ActionMarkDone, ActionMarkActive}
+	case StateCreating:
+		actions = []string{ActionSave}
+	}
+
+	actions = append(actions, ActionChangeCategory)
+
+	e.Provider = Name
+	e.Identifier = fmt.Sprintf("%d", i)
+	e.Text = v.Text
+	e.Actions = actions
+	e.State = []string{v.State}
+	e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
+
+	if !v.Finished.IsZero() {
+		if !v.Started.IsZero() {
+			duration := v.Finished.Sub(v.Started)
+			hours := int(duration.Hours())
+			minutes := int(duration.Minutes()) % 60
+
+			e.Subtext = fmt.Sprintf("Started: %s, Finished: %s, Duration: %s", v.Started.Format(config.TimeFormat), v.Finished.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
+		} else {
+			e.Subtext = fmt.Sprintf("Finished: %s", v.Finished.Format(config.TimeFormat))
+		}
+	} else if !v.Started.IsZero() {
+		duration := time.Since(v.Started)
+		hours := int(duration.Hours())
+		minutes := int(duration.Minutes()) % 60
+
+		e.Subtext = fmt.Sprintf("Started: %s, Ongoing: %s", v.Started.Format(config.TimeFormat), fmt.Sprintf("%02d:%02d", hours, minutes))
+	} else if !v.Scheduled.IsZero() {
+		e.Subtext = fmt.Sprintf("At: %s", v.Scheduled.Format(config.TimeFormat))
+	}
+
+	if !v.Scheduled.IsZero() && v.Scheduled.Before(urgent) && v.State != StateDone && v.State != StateActive {
+		e.State = []string{StateUrgent}
+	}
+
+	e.State = append(e.State, v.Urgency)
+
+	if v.Category != "" {
+		if e.Subtext != "" {
+			e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, v.Category)
+		} else {
+			e.Subtext = v.Category
+		}
+	}
+
+	return e
 }

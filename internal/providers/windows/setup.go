@@ -79,7 +79,7 @@ const (
 	ActionFocus = "focus"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	time.Sleep(time.Duration(config.Delay) * time.Millisecond)
 
 	i, _ := strconv.Atoi(identifier)

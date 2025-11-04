@@ -82,7 +82,7 @@ func PrintDoc() {
 
 const ActionRunCmd = "run_cmd"
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)

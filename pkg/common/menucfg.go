@@ -30,6 +30,7 @@ type Menu struct {
 	Icon                 string            `toml:"icon" desc:"default icon"`
 	Action               string            `toml:"action" desc:"default menu action to use"`
 	Actions              map[string]string `toml:"actions" desc:"global actions"`
+	AsyncActions         []string          `toml:"async_actions" desc:"set which actions should update the item on the client asynchronously"`
 	SearchName           bool              `toml:"search_name" desc:"wether to search for the menu name as well when searching globally" default:"false"`
 	Cache                bool              `toml:"cache" desc:"will cache the results of the lua script on startup"`
 	Entries              []Entry           `toml:"entries" desc:"menu items"`

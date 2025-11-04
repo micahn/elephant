@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/abenz1267/elephant/v2/internal/comm/handlers"
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
@@ -288,7 +289,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, _ string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	if action == ActionImport {
 		importBrowserBookmarks()
 		return
@@ -332,6 +333,9 @@ func Activate(identifier, action string, _ string, args string) {
 		}
 
 		bookmarks[i].Category = nextCategory
+
+		updated := bookmarkToEntry(i, bookmarks[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionChangeBrowser:
 		bookmarks[i].Imported = false
 		currentBrowser := bookmarks[i].Browser
@@ -353,6 +357,9 @@ func Activate(identifier, action string, _ string, args string) {
 		}
 
 		bookmarks[i].Browser = nextBrowser
+
+		updated := bookmarkToEntry(i, bookmarks[i])
+		handlers.UpdateItem(format, query, conn, updated)
 	case ActionDelete:
 		bookmarks = append(bookmarks[:i], bookmarks[i+1:]...)
 	case ActionOpen, "":
@@ -606,6 +613,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	for _, v := range config.Categories {
 		if strings.HasPrefix(query, v.Prefix) {
 			category = v
+			query = strings.TrimPrefix(query, v.Prefix)
 		}
 	}
 
@@ -614,24 +622,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			continue
 		}
 
-		e := &pb.QueryResponse_Item{}
-
-		e.Score = 999_999 - int32(i)
-
-		e.Icon = config.Icon
-		e.Provider = Name
-		e.Identifier = fmt.Sprintf("%d", i)
-		e.Text = b.Description
-		e.Subtext = b.URL
-		e.Actions = []string{ActionOpen, ActionDelete}
-
-		if len(config.Browsers) > 0 {
-			e.Actions = append(e.Actions, ActionChangeBrowser)
-		}
-
-		if len(config.Categories) > 0 {
-			e.Actions = append(e.Actions, ActionChangeCategory)
-		}
+		e := bookmarkToEntry(i, b)
 
 		e.State = []string{StateNormal}
 		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
@@ -646,30 +637,6 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 
 		if e.Score > highestScore {
 			highestScore = e.Score
-		}
-
-		if b.Browser != "" {
-			if val, ok := availableBrowsers[b.Browser]; ok {
-				if val != "" {
-					e.Icon = val
-				}
-
-				if e.Subtext != "" {
-					e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, b.Browser)
-				} else {
-					e.Subtext = b.Browser
-				}
-			}
-		}
-
-		if b.Category != "" {
-			if _, ok := availableCats[b.Category]; ok {
-				if e.Subtext != "" {
-					e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, b.Category)
-				} else {
-					e.Subtext = b.Category
-				}
-			}
 		}
 
 		if query == "" || e.Score > config.MinScore {
@@ -697,6 +664,52 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	}
 
 	return entries
+}
+
+func bookmarkToEntry(i int, b Bookmark) *pb.QueryResponse_Item {
+	e := &pb.QueryResponse_Item{}
+	e.Score = 999_999 - int32(i)
+
+	e.Icon = config.Icon
+	e.Provider = Name
+	e.Identifier = fmt.Sprintf("%d", i)
+	e.Text = b.Description
+	e.Subtext = b.URL
+	e.Actions = []string{ActionOpen, ActionDelete}
+
+	if len(config.Browsers) > 0 {
+		e.Actions = append(e.Actions, ActionChangeBrowser)
+	}
+
+	if len(config.Categories) > 0 {
+		e.Actions = append(e.Actions, ActionChangeCategory)
+	}
+
+	if b.Browser != "" {
+		if val, ok := availableBrowsers[b.Browser]; ok {
+			if val != "" {
+				e.Icon = val
+			}
+
+			if e.Subtext != "" {
+				e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, b.Browser)
+			} else {
+				e.Subtext = b.Browser
+			}
+		}
+	}
+
+	if b.Category != "" {
+		if _, ok := availableCats[b.Category]; ok {
+			if e.Subtext != "" {
+				e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, b.Category)
+			} else {
+				e.Subtext = b.Category
+			}
+		}
+	}
+
+	return e
 }
 
 func Icon() string {

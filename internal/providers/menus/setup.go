@@ -48,7 +48,7 @@ const (
 	ActionDefault  = "menus:default"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case ActionGoParent:
 		identifier = strings.TrimPrefix(identifier, "menus:")
@@ -212,6 +212,12 @@ func Activate(identifier, action string, query string, args string) {
 		if menu != nil && menu.History {
 			h.Save(query, identifier)
 		}
+
+		if slices.Contains(menu.AsyncActions, action) {
+			updated := itemToEntry(format, query, conn, menu.Actions, menu.NamePretty, single, menu.Icon, &e)
+			handlers.UpdateItem(format, query, conn, updated)
+
+		}
 	}
 }
 
@@ -239,75 +245,10 @@ func Query(conn net.Conn, query string, single bool, exact bool, format uint8) [
 		}
 
 		for k, me := range v.Entries {
-			icon := v.Icon
-
-			if me.Icon != "" {
-				icon = me.Icon
-			}
-
-			sub := me.Subtext
-
-			if !single {
-				if sub == "" {
-					sub = v.NamePretty
-				} else {
-					sub = fmt.Sprintf("%s: %s", v.NamePretty, sub)
-				}
-			}
-
-			var actions []string
-
-			for k := range me.Actions {
-				actions = append(actions, k)
-			}
-
-			for k := range v.Actions {
-				if !slices.Contains(actions, k) {
-					actions = append(actions, k)
-				}
-			}
-
-			if strings.HasPrefix(me.Identifier, "menus:") {
-				actions = append(actions, ActionOpen)
-			}
-
-			if len(actions) == 0 {
-				actions = append(actions, ActionDefault)
-			}
-
-			e := &pb.QueryResponse_Item{
-				Identifier:  me.Identifier,
-				Text:        me.Text,
-				Subtext:     sub,
-				Provider:    fmt.Sprintf("%s:%s", Name, me.Menu),
-				Icon:        icon,
-				State:       me.State,
-				Actions:     actions,
-				Type:        pb.QueryResponse_REGULAR,
-				Preview:     me.Preview,
-				PreviewType: me.PreviewType,
-			}
+			e := itemToEntry(format, query, conn, v.Actions, v.NamePretty, single, v.Icon, &v.Entries[k])
 
 			if v.FixedOrder {
 				e.Score = 1_000_000 - int32(k)
-			}
-
-			if me.Async != "" {
-				v.Entries[k].Value = ""
-
-				go func() {
-					cmd := exec.Command("sh", "-c", me.Async)
-					out, err := cmd.CombinedOutput()
-
-					if err == nil {
-						e.Text = strings.TrimSpace(string(out))
-						v.Entries[k].Value = e.Text
-					} else {
-						e.Text = "%DELETE%"
-					}
-
-					handlers.UpdateItem(format, query, conn, e)
-				}()
 			}
 
 			if query != "" {
@@ -394,4 +335,73 @@ func calcScore(q string, d common.Entry, exact bool) (string, int32, []int32, in
 	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
 
 	return match, scoreRes, posRes, startRes, true
+}
+
+func itemToEntry(format uint8, query string, conn net.Conn, menuActions map[string]string, namePretty string, single bool, icon string, me *common.Entry) *pb.QueryResponse_Item {
+	if me.Icon != "" {
+		icon = me.Icon
+	}
+
+	sub := me.Subtext
+
+	if !single {
+		if sub == "" {
+			sub = namePretty
+		} else {
+			sub = fmt.Sprintf("%s: %s", namePretty, sub)
+		}
+	}
+
+	var actions []string
+
+	for k := range me.Actions {
+		actions = append(actions, k)
+	}
+
+	for k := range menuActions {
+		if !slices.Contains(actions, k) {
+			actions = append(actions, k)
+		}
+	}
+
+	if strings.HasPrefix(me.Identifier, "menus:") {
+		actions = append(actions, ActionOpen)
+	}
+
+	if len(actions) == 0 {
+		actions = append(actions, ActionDefault)
+	}
+
+	e := &pb.QueryResponse_Item{
+		Identifier:  me.Identifier,
+		Text:        me.Text,
+		Subtext:     sub,
+		Provider:    fmt.Sprintf("%s:%s", Name, me.Menu),
+		Icon:        icon,
+		State:       me.State,
+		Actions:     actions,
+		Type:        pb.QueryResponse_REGULAR,
+		Preview:     me.Preview,
+		PreviewType: me.PreviewType,
+	}
+
+	if me.Async != "" {
+		me.Value = ""
+
+		go func() {
+			cmd := exec.Command("sh", "-c", me.Async)
+			out, err := cmd.CombinedOutput()
+
+			if err == nil {
+				e.Text = strings.TrimSpace(string(out))
+				me.Value = e.Text
+			} else {
+				e.Text = "%DELETE%"
+			}
+
+			handlers.UpdateItem(format, query, conn, e)
+		}()
+	}
+
+	return e
 }

@@ -103,7 +103,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	i := slices.IndexFunc(history, func(item HistoryItem) bool {
 		return item.Identifier == identifier
 	})

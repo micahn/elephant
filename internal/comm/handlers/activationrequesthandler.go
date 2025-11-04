@@ -40,7 +40,7 @@ func (a *ActivateRequest) Handle(format uint8, cid uint32, conn net.Conn, data [
 	}
 
 	if p, ok := providers.Providers[provider]; ok {
-		p.Activate(req.Identifier, req.Action, req.Query, req.Arguments)
+		p.Activate(req.Single, req.Identifier, req.Action, req.Query, req.Arguments, format, conn)
 
 		var buffer bytes.Buffer
 		buffer.Write([]byte{ActivationFinished})

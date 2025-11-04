@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ const (
 	ActionCopyFile = "copyfile"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	f := getFile(identifier)
 
 	if f == nil {
