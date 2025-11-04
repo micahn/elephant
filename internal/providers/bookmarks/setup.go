@@ -605,6 +605,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		loadBookmarks()
 	}
 
+	origQ := query
 	entries := []*pb.QueryResponse_Item{}
 	var highestScore int32
 
@@ -647,12 +648,12 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
 		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix) || highestScore < config.MinScore) {
 			b := Bookmark{}
-			b.fromQuery(query)
+			b.fromQuery(origQ)
 
 			e := &pb.QueryResponse_Item{}
 			e.Score = 3_000_000
 			e.Provider = Name
-			e.Identifier = fmt.Sprintf("CREATE:%s", query)
+			e.Identifier = fmt.Sprintf("CREATE:%s", origQ)
 			e.Icon = "list-add"
 			e.Text = b.Description
 			e.Subtext = b.URL

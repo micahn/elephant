@@ -476,6 +476,7 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		loadItems()
 	}
 
+	origQ := query
 	entries := []*pb.QueryResponse_Item{}
 	urgent := time.Now().Add(time.Duration(config.UrgentTimeFrame) * time.Minute)
 
@@ -522,12 +523,12 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
 		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix) || highestScore < config.MinScore) {
 			i := Item{}
-			i.fromQuery(query)
+			i.fromQuery(origQ)
 
 			e := &pb.QueryResponse_Item{}
 			e.Score = 3_000_000
 			e.Provider = Name
-			e.Identifier = fmt.Sprintf("CREATE:%s", query)
+			e.Identifier = fmt.Sprintf("CREATE:%s", origQ)
 			e.Icon = "list-add"
 			e.Text = i.Text
 			e.Actions = []string{ActionSave}
