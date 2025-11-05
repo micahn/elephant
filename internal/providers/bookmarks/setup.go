@@ -207,7 +207,7 @@ func saveBookmarks() {
 func loadBookmarks() {
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
-	if isGit {
+	if config.Location != "" {
 		file = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
 	}
 
