@@ -226,7 +226,7 @@ func LoadMenus() {
 		Paths: []string{},
 	}
 
-	LoadConfig(menuname, MenuConfigLoaded)
+	LoadConfig(menuname, &MenuConfigLoaded)
 
 	for _, v := range ConfigDirs() {
 		path := filepath.Join(v, "menus")
