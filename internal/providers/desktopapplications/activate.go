@@ -124,11 +124,10 @@ func Activate(single bool, identifier, action string, query string, args string,
 	}
 }
 
-func isPinned(identifier string) bool {
-	return slices.Contains(pins, identifier)
-}
-
 func movePin(identifier string, down bool) {
+	pinsMu.Lock()
+	defer pinsMu.Unlock()
+
 	index := -1
 	for i, pin := range pins {
 		if pin == identifier {
@@ -158,7 +157,10 @@ func movePin(identifier string, down bool) {
 }
 
 func pinItem(identifier string) {
-	if isPinned(identifier) {
+	pinsMu.Lock()
+	defer pinsMu.Unlock()
+
+	if slices.Contains(pins, identifier) {
 		i := slices.Index(pins, identifier)
 		pins = append(pins[:i], pins[i+1:]...)
 	} else {

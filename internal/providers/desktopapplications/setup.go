@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/util/windows"
@@ -27,6 +28,7 @@ var (
 	NamePretty = "Desktop Applications"
 	h          = history.Load(Name)
 	pins       = loadpinned()
+	pinsMu     sync.RWMutex
 	config     *Config
 	br         = []*regexp.Regexp{}
 	wmi        WMIntegration

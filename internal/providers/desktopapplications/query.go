@@ -75,14 +75,16 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 
 		pinned := false
 
+		pinsMu.RLock()
 		if query == "" {
-			i := slices.Index(pins, k)
+			index := slices.Index(pins, k)
 
-			if i != -1 {
+			if index != -1 {
 				pinned = true
-				score = 1000000 - int32(i)
+				score = 1000000 - int32(index)
 			}
 		}
+		pinsMu.RUnlock()
 
 		if score != 0 || usageScore != 0 || config.ShowActions && config.ShowGeneric || !config.ShowActions || (config.ShowActions && len(v.Actions) == 0) || query == "" {
 			if score >= config.MinScore || query == "" {
@@ -104,7 +106,8 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 					state = append(state, "unpinned")
 				}
 
-				if isPinned(k) {
+				pinsMu.RLock()
+				if slices.Contains(pins, k) {
 					a = append(a, ActionUnpin)
 
 					i := slices.Index(pins, k)
@@ -119,6 +122,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 				} else {
 					a = append(a, ActionPin)
 				}
+				pinsMu.RUnlock()
 
 				entries = append(entries, &pb.QueryResponse_Item{
 					Identifier: k,
@@ -197,6 +201,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 
 				pinned := false
 
+				pinsMu.RLock()
 				if query == "" {
 					i := slices.Index(pins, identifier)
 
@@ -205,6 +210,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 						score = 1000000 - int32(i)
 					}
 				}
+				pinsMu.RUnlock()
 
 				if (query == "" && config.ShowActionsWithoutQuery) || query != "" || usageScore != 0 || score != 0 {
 					if score >= config.MinScore || query == "" {
@@ -215,6 +221,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 							actions = append(actions, history.ActionDelete)
 						}
 
+						pinsMu.RLock()
 						if pinned {
 							state = append(state, "pinned")
 							actions = append(actions, ActionUnpin)
@@ -232,6 +239,7 @@ func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.Query
 							state = append(state, "unpinned")
 							actions = append(actions, ActionPin)
 						}
+						pinsMu.RUnlock()
 
 						entries = append(entries, &pb.QueryResponse_Item{
 							Identifier: identifier,
