@@ -44,3 +44,7 @@ january 1 at 13:00 my task
 ```
 
 Adding a `!` suffix will mark an item as urgent.
+
+##### Time-based searching
+
+Similar to creating, you can simply search for like `today` to get all items for today.
