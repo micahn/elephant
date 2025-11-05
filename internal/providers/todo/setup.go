@@ -31,6 +31,7 @@ var (
 	items      = []Item{}
 	parser     *naturaltime.Parser
 	isGit      bool
+	creating   bool
 )
 
 //go:embed README.md
@@ -38,7 +39,6 @@ var readme string
 
 type Config struct {
 	common.Config     `koanf:",squash"`
-	CreatePrefix      string     `koanf:"create_prefix" desc:"prefix used in order to create a new item. will otherwise be based on matches (min_score)." default:""`
 	UrgentTimeFrame   int        `koanf:"urgent_time_frame" desc:"items that have a due time within this period will be marked as urgent" default:"10"`
 	DuckPlayerVolumes bool       `koanf:"duck_player_volumes" desc:"lowers volume of players when notifying, slowly raises volumes again" default:"true"`
 	Categories        []Category `koanf:"categories" desc:"categories" default:""`
@@ -85,12 +85,15 @@ const (
 
 const (
 	ActionSave           = "save"
+	ActionSaveNext       = "save_next"
 	ActionChangeCategory = "change_category"
 	ActionDelete         = "delete"
 	ActionMarkDone       = "done"
 	ActionMarkActive     = "active"
 	ActionMarkInactive   = "inactive"
 	ActionClear          = "clear"
+	ActionCreate         = "create"
+	ActionSearch         = "search"
 )
 
 const (
@@ -156,8 +159,6 @@ func saveItems() {
 }
 
 func (i *Item) fromQuery(query string) {
-	query = strings.TrimSpace(strings.TrimPrefix(query, config.CreatePrefix))
-
 	category := ""
 
 	for _, v := range config.Categories {
@@ -203,7 +204,6 @@ func Setup() {
 			Icon:     "checkbox-checked",
 			MinScore: 20,
 		},
-		CreatePrefix:      "",
 		UrgentTimeFrame:   10,
 		DuckPlayerVolumes: true,
 		Location:          "",
@@ -305,17 +305,15 @@ func PrintDoc() {
 }
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
-	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
-		if after != "" {
-			store(after)
-		}
-
-		return
-	}
-
 	i, _ := strconv.Atoi(identifier)
 
 	switch action {
+	case ActionSearch:
+		creating = false
+		return
+	case ActionCreate:
+		creating = true
+		return
 	case ActionChangeCategory:
 		currentCategory := items[i].Category
 		nextCategory := ""
@@ -373,12 +371,27 @@ func Activate(single bool, identifier, action string, query string, args string,
 			}
 		}
 		items = items[:n]
+	case ActionSave, ActionSaveNext:
+		if action == ActionSave {
+			creating = false
+		}
+
+		createNew(identifier)
+		return
 	default:
 		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
 		return
 	}
 
 	saveItems()
+}
+
+func createNew(identifier string) {
+	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
+		store(after)
+
+		return
+	}
 }
 
 func store(query string) {
@@ -507,37 +520,50 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		}
 	}
 
-	for i, v := range items {
-		if category.Name != "" && v.Category != category.Name {
-			continue
-		}
+	var date *time.Time
 
-		e := itemToEntry(urgent, i, v)
-
-		if query != "" {
-			e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
-		}
-
-		if slices.Contains(e.State, StateActive) && query == "" {
-			e.Score = 1_000_001
-		}
-
-		if slices.Contains(e.State, StateUrgent) && query == "" {
-			diff := time.Since(v.Scheduled).Minutes()
-			e.Score = 2_000_000 + int32(diff)
-		}
-
-		if e.Score > highestScore {
-			highestScore = e.Score
-		}
-
-		if query == "" || e.Score > config.MinScore {
-			entries = append(entries, e)
+	if !creating {
+		date, _ = parser.ParseDate(query, time.Now())
+		if date != nil {
+			query = ""
 		}
 	}
 
-	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
-		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix) || highestScore < config.MinScore) {
+	if !creating {
+		for i, v := range items {
+			if category.Name != "" && v.Category != category.Name {
+				continue
+			}
+
+			e := itemToEntry(urgent, i, v)
+
+			if query != "" {
+				e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
+			}
+
+			if slices.Contains(e.State, StateActive) && query == "" {
+				e.Score = 1_000_001
+			}
+
+			if slices.Contains(e.State, StateUrgent) && query == "" {
+				diff := time.Since(v.Scheduled).Minutes()
+				e.Score = 2_000_000 + int32(diff)
+			}
+
+			if e.Score > highestScore {
+				highestScore = e.Score
+			}
+
+			if date == nil {
+				if query == "" || e.Score > config.MinScore {
+					entries = append(entries, e)
+				}
+			} else if isSameDay(date, &v.Scheduled) {
+				entries = append(entries, e)
+			}
+		}
+	} else {
+		if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
 			i := Item{}
 			i.fromQuery(origQ)
 
@@ -547,11 +573,19 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			e.Identifier = fmt.Sprintf("CREATE:%s", origQ)
 			e.Icon = "list-add"
 			e.Text = i.Text
-			e.Actions = []string{ActionSave}
+			e.Actions = []string{ActionSave, ActionSaveNext}
 			e.State = []string{StateCreating}
 
 			if !i.Scheduled.IsZero() {
 				e.Subtext = i.Scheduled.Format(config.TimeFormat)
+			}
+
+			if category.Name != "" {
+				if e.Subtext != "" {
+					e.Subtext = fmt.Sprintf("%s, %s", e.Subtext, category.Name)
+				} else {
+					e.Subtext = category.Name
+				}
 			}
 
 			entries = append(entries, e)
@@ -566,15 +600,29 @@ func Icon() string {
 }
 
 func State(provider string) *pb.ProviderStateResponse {
+	states := []string{}
+	actions := []string{}
+
+	if creating {
+		states = append(states, "creating")
+		actions = append(actions, ActionSearch)
+	} else {
+		states = append(states, "searching")
+		actions = append(actions, ActionCreate)
+	}
+
 	for _, v := range items {
 		if v.State == StateDone {
 			return &pb.ProviderStateResponse{
-				States:  []string{"hasfinished"},
-				Actions: []string{ActionClear},
+				States:  append([]string{"hasfinished"}, states...),
+				Actions: append([]string{ActionClear}, actions...),
 			}
 		}
 	}
-	return &pb.ProviderStateResponse{}
+	return &pb.ProviderStateResponse{
+		States:  states,
+		Actions: actions,
+	}
 }
 
 func itemToEntry(urgent time.Time, i int, v Item) *pb.QueryResponse_Item {
@@ -643,4 +691,10 @@ func itemToEntry(urgent time.Time, i int, v Item) *pb.QueryResponse_Item {
 	}
 
 	return e
+}
+
+func isSameDay(t1, t2 *time.Time) bool {
+	y1, m1, d1 := t1.Date()
+	y2, m2, d2 := t2.Date()
+	return y1 == y2 && m1 == m2 && d1 == d2
 }

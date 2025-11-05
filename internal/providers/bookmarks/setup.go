@@ -28,6 +28,7 @@ var (
 	availableBrowsers = make(map[string]string)
 	availableCats     = make(map[string]struct{})
 	isGit             bool
+	creating          bool
 )
 
 //go:embed README.md
@@ -35,7 +36,6 @@ var readme string
 
 type Config struct {
 	common.Config      `koanf:",squash"`
-	CreatePrefix       string     `koanf:"create_prefix" desc:"prefix used in order to create a new bookmark. will otherwise be based on matches (min_score)." default:""`
 	Location           string     `koanf:"location" desc:"location of the CSV file" default:"elephant cache dir"`
 	Categories         []Category `koanf:"categories" desc:"categories" default:""`
 	Browsers           []Browser  `koanf:"browsers" desc:"browsers for opening bookmarks" default:""`
@@ -83,6 +83,8 @@ const (
 	ActionChangeCategory = "change_category"
 	ActionChangeBrowser  = "change_browser"
 	ActionImport         = "import"
+	ActionCreate         = "create"
+	ActionSearch         = "search"
 )
 
 type Bookmark struct {
@@ -136,9 +138,6 @@ func (b *Bookmark) fromCSVRow(row string) error {
 }
 
 func (b *Bookmark) fromQuery(query string) {
-	query = strings.TrimSpace(strings.TrimPrefix(query, config.CreatePrefix))
-	query = strings.TrimSpace(strings.TrimPrefix(query, ":"))
-
 	category := ""
 
 	for _, v := range config.Categories {
@@ -265,7 +264,6 @@ func Setup() {
 			Icon:     "user-bookmarks",
 			MinScore: 20,
 		},
-		CreatePrefix:       "",
 		Location:           "",
 		SetBrowserOnImport: false,
 	}
@@ -307,27 +305,26 @@ func PrintDoc() {
 }
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
-	if action == ActionImport {
-		importBrowserBookmarks()
-		return
-	}
-
-	if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
-		if after != "" {
-			store(after)
-		}
-
-		return
-	}
-
-	i, err := strconv.Atoi(identifier)
-	if err != nil {
-		slog.Error(Name, "activate", fmt.Sprintf("invalid identifier: %s", identifier))
-		return
-	}
+	i, _ := strconv.Atoi(identifier)
 
 	switch action {
+	case ActionImport:
+		if action == ActionImport {
+			importBrowserBookmarks()
+			return
+		}
 	case ActionSave:
+		if after, ok := strings.CutPrefix(identifier, "CREATE:"); ok {
+			creating = false
+			store(after)
+
+			return
+		}
+	case ActionSearch:
+		creating = false
+		return
+	case ActionCreate:
+		creating = true
 		return
 	case ActionChangeCategory:
 		bookmarks[i].Imported = false
@@ -635,35 +632,35 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 		}
 	}
 
-	for i, b := range bookmarks {
-		if category.Name != "" && b.Category != category.Name {
-			continue
+	if !creating {
+		for i, b := range bookmarks {
+			if category.Name != "" && b.Category != category.Name {
+				continue
+			}
+
+			e := bookmarkToEntry(i, b)
+
+			e.State = []string{StateNormal}
+			e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
+
+			if e.Text == e.Subtext {
+				e.Subtext = ""
+			}
+
+			if query != "" {
+				_, e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start, _ = calcScore(query, b, exact)
+			}
+
+			if e.Score > highestScore {
+				highestScore = e.Score
+			}
+
+			if query == "" || e.Score > config.MinScore {
+				entries = append(entries, e)
+			}
 		}
-
-		e := bookmarkToEntry(i, b)
-
-		e.State = []string{StateNormal}
-		e.Fuzzyinfo = &pb.QueryResponse_Item_FuzzyInfo{}
-
-		if e.Text == e.Subtext {
-			e.Subtext = ""
-		}
-
-		if query != "" {
-			_, e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start, _ = calcScore(query, b, exact)
-		}
-
-		if e.Score > highestScore {
-			highestScore = e.Score
-		}
-
-		if query == "" || e.Score > config.MinScore {
-			entries = append(entries, e)
-		}
-	}
-
-	if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
-		if single && (config.CreatePrefix != "" && strings.HasPrefix(query, config.CreatePrefix) || highestScore < config.MinScore) {
+	} else {
+		if strings.TrimSpace(strings.TrimPrefix(query, category.Prefix)) != "" {
 			b := Bookmark{}
 			b.fromQuery(origQ)
 
@@ -735,8 +732,20 @@ func Icon() string {
 }
 
 func State(provider string) *pb.ProviderStateResponse {
+	actions := []string{ActionImport}
+	states := []string{}
+
+	if creating {
+		states = append(states, "creating")
+		actions = append(actions, ActionSearch)
+	} else {
+		states = append(states, "searching")
+		actions = append(actions, ActionCreate)
+	}
+
 	return &pb.ProviderStateResponse{
-		Actions: []string{ActionImport},
+		States:  states,
+		Actions: actions,
 	}
 }
 
