@@ -124,7 +124,6 @@ in {
                     name = "bookmarks";
                     name_pretty = "Bookmarks";
                     icon = "bookmark";
-                    global_search = true;
                     action = "xdg-open %VALUE%";
 
                     entries = [

@@ -23,7 +23,6 @@ Submenus/Dmenus will automatically get an action `open`.
 name = "other"
 name_pretty = "Other"
 icon = "applications-other"
-global_search = true
 
 [[entries]]
 text = "Color Picker"
@@ -84,7 +83,6 @@ submenu = "dmenu:uuctl"
 name = "screenshots"
 name_pretty = "Screenshots"
 icon = "camera-photo"
-global_search = true
 
 [[entries]]
 text = "View"
@@ -120,7 +118,6 @@ submenu = "other"
 name = "bookmarks"
 name_pretty = "Bookmarks"
 icon = "bookmark"
-global_search = true
 action = "xdg-open %VALUE%"
 
 [[entries]]
