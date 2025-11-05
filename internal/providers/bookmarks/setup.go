@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/comm/handlers"
@@ -204,7 +205,21 @@ func saveBookmarks() {
 	}
 }
 
+var (
+	loadMu sync.Mutex
+	loaded bool
+)
+
 func loadBookmarks() {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+
+	if loaded {
+		return
+	}
+
+	bookmarks = []Bookmark{}
+
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
 
 	if config.Location != "" {
@@ -240,6 +255,8 @@ func loadBookmarks() {
 
 		bookmarks = append(bookmarks, b)
 	}
+
+	loaded = true
 }
 
 func Setup() {

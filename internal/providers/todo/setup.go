@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/comm/handlers"
@@ -414,8 +415,21 @@ func migrateGOBtoCSV() bool {
 	return false
 }
 
+var (
+	loadMu sync.Mutex
+	loaded bool
+)
+
 func loadItems() {
+	loadMu.Lock()
+	defer loadMu.Unlock()
+
+	if loaded {
+		return
+	}
+
 	file := common.CacheFile(fmt.Sprintf("%s.csv", Name))
+	items = []Item{}
 
 	if config.Location != "" {
 		file = filepath.Join(config.Location, fmt.Sprintf("%s.csv", Name))
@@ -468,6 +482,8 @@ func loadItems() {
 			}
 		}
 	}
+
+	loaded = true
 }
 
 func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
