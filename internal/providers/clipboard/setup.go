@@ -745,8 +745,10 @@ func State(provider string) *pb.ProviderStateResponse {
 	actions := []string{nextMode}
 
 	if paused {
+		states = append(states, "paused")
 		actions = append(actions, ActionUnpause)
 	} else {
+		states = append(states, "unpaused")
 		actions = append(actions, ActionPause)
 	}
 
