@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"plugin"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/abenz1267/elephant/v2/pkg/common"
@@ -72,6 +73,16 @@ func Load(setup bool) {
 			done := slices.Contains(have, filepath.Base(path))
 			mut.Unlock()
 
+			fn := strings.TrimSuffix(filepath.Base(path), ".so")
+
+			if slices.Contains(ignored, fn) {
+				mut.Lock()
+				have = append(have, filepath.Base(path))
+				mut.Unlock()
+
+				return nil
+			}
+
 			if !done && filepath.Ext(path) == ".so" {
 				p, err := plugin.Open(path)
 				if err != nil {
@@ -82,13 +93,6 @@ func Load(setup bool) {
 				name, err := p.Lookup("Name")
 				if err != nil {
 					slog.Error("providers", "load", err, "provider", path)
-				}
-
-				if slices.Contains(ignored, *name.(*string)) {
-					mut.Lock()
-					have = append(have, filepath.Base(path))
-					mut.Unlock()
-					return nil
 				}
 
 				namePretty, err := p.Lookup("NamePretty")
