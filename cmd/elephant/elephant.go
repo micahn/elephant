@@ -199,8 +199,16 @@ WantedBy=graphical-session.target
 						Name: "content",
 					},
 				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        "json",
+						Category:    "",
+						DefaultText: "output as json",
+						Usage:       "if you want json. use this.",
+					},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					client.ProviderState(cmd.StringArg("content"))
+					client.ProviderState(cmd.StringArg("content"), cmd.Bool("json"))
 
 					return nil
 				},

@@ -13,7 +13,7 @@ import (
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
 )
 
-func ProviderState(data string) {
+func ProviderState(data string, j bool) {
 	req := pb.ProviderStateRequest{
 		Provider: data,
 	}
@@ -54,7 +54,7 @@ func ProviderState(data string) {
 			panic(err)
 		}
 
-		if header[0] == 255 {
+		if header[0] == 253 {
 			break
 		}
 
@@ -77,6 +77,15 @@ func ProviderState(data string) {
 			panic(err)
 		}
 
-		fmt.Println(resp)
+		if !j {
+			fmt.Println(resp)
+		} else {
+			out, err := json.Marshal(resp)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Println(string(out))
+		}
 	}
 }
