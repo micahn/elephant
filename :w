@@ -32,7 +32,6 @@ var readme string
 
 const (
 	ActionInstall       = "install"
-	ActionRefresh       = "refresh"
 	ActionRemove        = "remove"
 	ActionShowInstalled = "show_installed"
 	ActionShowAll       = "show_all"
@@ -74,23 +73,6 @@ type AURPackage struct {
 	Popularity     float64 `json:"popularity,omitempty"`
 	FirstSubmitted int64   `json:"first_submitted,omitempty"`
 	LastModified   int64   `json:"last_modified,omitempty"`
-}
-
-func (a AURPackage) toFullInfo() string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Name", a.Name))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Description", a.Description))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Version", a.Version))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "URL", a.URL))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "URL-Path", a.URLPath))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Maintainer", a.Maintainer))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Submitter", a.Submitter))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Submitted", a.FirstSubmitted))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Votes", a.NumVotes))
-	b.WriteString(fmt.Sprintf("%-*s: %f.2", 15, "Popularity", a.Popularity))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Modified", a.LastModified))
-
-	return b.String()
 }
 
 func detectHelper() string {
@@ -150,9 +132,6 @@ func PrintDoc() {
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
-	case ActionRefresh:
-		setup()
-		return
 	case ActionShowAll:
 		installedOnly = false
 		return
@@ -265,16 +244,14 @@ func HideFromProviderlist() bool {
 }
 
 func State(provider string) *pb.ProviderStateResponse {
-	actions := []string{ActionRefresh}
-
 	if installedOnly {
-		actions = append(actions, ActionShowAll)
-	} else {
-		actions = append(actions, ActionShowInstalled)
+		return &pb.ProviderStateResponse{
+			Actions: []string{ActionShowAll},
+		}
 	}
 
 	return &pb.ProviderStateResponse{
-		Actions: actions,
+		Actions: []string{ActionShowInstalled},
 	}
 }
 
@@ -299,7 +276,7 @@ func getOfficialPkgs() {
 		if len(parts) == 2 {
 			data.WriteString(fmt.Sprintf("%-*s: %s\n", 15, parts[0], strings.TrimSpace(parts[1])))
 		} else {
-			data.WriteString(fmt.Sprintf("%-*s", 17, line))
+			// data.WriteString(strings.Trline)
 		}
 
 		switch {
@@ -348,7 +325,6 @@ func setupAUR() {
 			Version:     pkg.Version,
 			Repository:  "aur",
 			Installed:   slices.Contains(installed, pkg.Name),
-			FullInfo:    pkg.toFullInfo(),
 		}
 	}
 }
@@ -368,4 +344,11 @@ func getInstalled() {
 			installed = append(installed, fields[0])
 		}
 	}
+}
+
+func makeSameLength(str string, length int) string {
+	if len(str) >= length {
+		return str
+	}
+	return str + strings.Repeat(" ", length-len(str))
 }
