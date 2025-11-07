@@ -143,7 +143,7 @@ func Activate(single bool, identifier, action string, query string, args string,
 				return
 			}
 
-			state := common.NewLuaState(menu.Name, menu.LuaString)
+			state := menu.NewLuaState()
 
 			if state != nil {
 				functionName := after

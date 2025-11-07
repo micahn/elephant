@@ -17,6 +17,11 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+var (
+	states  = make(map[string][]string)
+	stateMu sync.Mutex
+)
+
 type MenuConfig struct {
 	Config `koanf:",squash"`
 	Paths  []string `koanf:"paths" desc:"additional paths to check for menu definitions." default:""`
@@ -48,19 +53,23 @@ type Menu struct {
 	IsLua     bool `toml:"-"`
 }
 
-func NewLuaState(name, data string) *lua.LState {
+func (m *Menu) NewLuaState() *lua.LState {
 	l := lua.NewState()
 
-	if err := l.DoString(data); err != nil {
-		slog.Error(name, "newLuaState", err)
+	if err := l.DoString(m.LuaString); err != nil {
+		slog.Error(m.Name, "newLuaState", err)
 		l.Close()
 		return nil
 	}
 
 	if l == nil {
-		slog.Error(name, "newLuaState", "lua state is nil")
+		slog.Error(m.Name, "newLuaState", "lua state is nil")
 		return nil
 	}
+
+	l.SetGlobal("lastMenuValue", l.NewFunction(GetLastMenuValue))
+	l.SetGlobal("state", l.NewFunction(m.GetState))
+	l.SetGlobal("setState", l.NewFunction(m.SetState))
 
 	return l
 }
@@ -84,10 +93,40 @@ func GetLastMenuValue(L *lua.LState) int {
 	return 1
 }
 
-func (m *Menu) CreateLuaEntries() {
-	state := NewLuaState(m.Name, m.LuaString)
+func (m *Menu) SetState(L *lua.LState) int {
+	state := []string{}
 
-	state.SetGlobal("lastMenuValue", state.NewFunction(GetLastMenuValue))
+	t := L.CheckTable(1)
+
+	t.ForEach(func(a, b lua.LValue) {
+		state = append(state, b.String())
+	})
+
+	stateMu.Lock()
+	states[m.Name] = state
+	stateMu.Unlock()
+
+	return 1
+}
+
+func (m *Menu) GetState(L *lua.LState) int {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+
+	table := L.NewTable()
+
+	if strs, ok := states[m.Name]; ok {
+		for i, str := range strs {
+			table.RawSetInt(i+1, lua.LString(str))
+		}
+	}
+
+	L.Push(table)
+	return 1
+}
+
+func (m *Menu) CreateLuaEntries() {
+	state := m.NewLuaState()
 
 	if state == nil {
 		slog.Error(m.Name, "CreateLuaEntries", "no lua state")
@@ -281,7 +320,7 @@ func createLuaMenu(path string) {
 
 	m.LuaString = string(b)
 
-	state := NewLuaState("", string(b))
+	state := m.NewLuaState()
 
 	if val := state.GetGlobal("Name"); val != lua.LNil {
 		m.Name = string(val.(lua.LString))
