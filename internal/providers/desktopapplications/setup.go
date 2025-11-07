@@ -60,6 +60,7 @@ type Config struct {
 	WindowIntegration              bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
 	WindowIntegrationIgnoreActions bool              `koanf:"window_integration_ignore_actions" desc:"will ignore the window integration for actions" default:"true"`
 	WMIntegration                  bool              `koanf:"wm_integration" desc:"Moves apps to the workspace where they were launched at automatically. Currently Niri only." default:"false"`
+	ScoreOpenWindows               bool              `koanf:"score_open_windows" desc:"Apps that have open windows, get their score halved. Requires window_integration." default:"true"`
 	SingleInstanceApps             []string          `koanf:"single_instance_apps" desc:"application IDs that don't ever spawn a new window. " default:"[\"discord\"]"`
 }
 
@@ -92,6 +93,7 @@ func Setup() {
 			Icon:     "applications-other",
 			MinScore: 30,
 		},
+		ScoreOpenWindows:        true,
 		ActionMinScore:          20,
 		OnlySearchTitle:         false,
 		ShowActions:             false,

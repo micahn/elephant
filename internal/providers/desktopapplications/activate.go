@@ -16,6 +16,7 @@ import (
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
 	"github.com/abenz1267/elephant/v2/pkg/common/wlr"
+	"github.com/neurlang/wayland/wl"
 )
 
 const (
@@ -61,16 +62,11 @@ func Activate(single bool, identifier, action string, query string, args string,
 
 		if config.WindowIntegration && wlr.IsSetup && action != ActionNewInstance {
 			if !isAction || !config.WindowIntegrationIgnoreActions {
-				w := wlr.Windows()
-				for k, v := range w {
-					f := files[parts[0]]
-
-					if v.AppID == f.StartupWMClass || v.AppID == f.Icon || v.AppID == strings.Fields(f.Exec)[0] {
-						if err := wlr.Activate(k); err == nil {
-							return
-						} else {
-							slog.Error(Name, "focus window", err)
-						}
+				if id, ok := appHasWindow(files[parts[0]]); ok {
+					if err := wlr.Activate(id); err == nil {
+						return
+					} else {
+						slog.Error(Name, "focus window", err)
 					}
 				}
 			}
@@ -183,4 +179,16 @@ func pinItem(identifier string) {
 	if err != nil {
 		slog.Error("pinned", "writefile", err)
 	}
+}
+
+func appHasWindow(f *DesktopFile) (wl.ProxyId, bool) {
+	w := wlr.Windows()
+
+	for k, v := range w {
+		if v.AppID == f.StartupWMClass || v.AppID == f.Icon || v.AppID == strings.Fields(f.Exec)[0] {
+			return k, true
+		}
+	}
+
+	return wl.ProxyId(0), false
 }
