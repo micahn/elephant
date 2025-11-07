@@ -300,18 +300,18 @@ func handleChange() {
 			continue
 		}
 
-		img, imgerr := getClipboardImage()
-		if imgerr == nil {
-			mu.Lock()
-			updateImage(img)
-			mu.Unlock()
-			continue
-		}
-
 		text, texterr := getClipboardText()
 		if texterr == nil {
 			mu.Lock()
 			updateText(text)
+			mu.Unlock()
+			continue
+		}
+
+		img, imgerr := getClipboardImage()
+		if imgerr == nil {
+			mu.Lock()
+			updateImage(img)
 			mu.Unlock()
 			continue
 		}
