@@ -81,10 +81,6 @@ func Activate(single bool, identifier, action string, query string, args string,
 	case ActionCopyPassword:
 		toRun := "wl-copy $(op item get %VALUE% --fields password --reveal)"
 
-		if config.ClearAfter > 0 {
-			toRun = fmt.Sprintf("%s && sleep %d && wl-copy --clear", toRun, config.ClearAfter)
-		}
-
 		cmd := common.ReplaceResultOrStdinCmd(toRun, identifier)
 		stderr, _ := cmd.StderrPipe()
 
@@ -102,6 +98,11 @@ func Activate(single bool, identifier, action string, query string, args string,
 					exec.Command("notify-send", "No password field for this item").Run()
 				} else {
 					exec.Command("notify-send", "copied").Run()
+
+					if config.ClearAfter > 0 {
+						time.Sleep(time.Duration(config.ClearAfter))
+						exec.Command("wl-copy", "--clear")
+					}
 				}
 			}
 		}()
@@ -123,13 +124,14 @@ func Activate(single bool, identifier, action string, query string, args string,
 			go func() {
 				cmd.Wait()
 			}()
+
+			if config.ClearAfter > 0 {
+				time.Sleep(time.Duration(config.ClearAfter))
+				exec.Command("wl-copy", "--clear")
+			}
 		}
 	case ActionCopy2FA:
 		toRun := "wl-copy $(op item get %VALUE% --otp)"
-
-		if config.ClearAfter > 0 {
-			toRun = fmt.Sprintf("%s && sleep %d && wl-copy --clear", toRun, config.ClearAfter)
-		}
 
 		cmd := common.ReplaceResultOrStdinCmd(toRun, identifier)
 		stderr, _ := cmd.StderrPipe()
@@ -148,6 +150,11 @@ func Activate(single bool, identifier, action string, query string, args string,
 					exec.Command("notify-send", "No OTP field for this item").Run()
 				} else {
 					exec.Command("notify-send", "copied").Run()
+
+					if config.ClearAfter > 0 {
+						time.Sleep(time.Duration(config.ClearAfter))
+						exec.Command("wl-copy", "--clear")
+					}
 				}
 			}
 		}()
