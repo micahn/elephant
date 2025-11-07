@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -70,6 +71,8 @@ func (m *Menu) NewLuaState() *lua.LState {
 	l.SetGlobal("lastMenuValue", l.NewFunction(GetLastMenuValue))
 	l.SetGlobal("state", l.NewFunction(m.GetState))
 	l.SetGlobal("setState", l.NewFunction(m.SetState))
+	l.SetGlobal("jsonEncode", l.NewFunction(JSONEncode))
+	l.SetGlobal("jsonDecode", l.NewFunction(JSONDecode))
 
 	return l
 }
@@ -123,6 +126,100 @@ func (m *Menu) GetState(L *lua.LState) int {
 
 	L.Push(table)
 	return 1
+}
+
+func JSONEncode(L *lua.LState) int {
+	val := L.Get(1)
+
+	goVal := luaValueToGo(val)
+
+	jsonBytes, err := json.Marshal(goVal)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
+
+	L.Push(lua.LString(string(jsonBytes)))
+	return 1
+}
+
+func JSONDecode(L *lua.LState) int {
+	jsonStr := L.CheckString(1)
+
+	var result any
+	err := json.Unmarshal([]byte(jsonStr), &result)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
+
+	luaVal := goValueToLua(L, result)
+	L.Push(luaVal)
+	return 1
+}
+
+func luaValueToGo(val lua.LValue) any {
+	switch v := val.(type) {
+	case lua.LString:
+		return string(v)
+	case lua.LNumber:
+		return float64(v)
+	case lua.LBool:
+		return bool(v)
+	case *lua.LTable:
+		// Check if it's an array or object
+		maxN := v.MaxN()
+		if maxN > 0 {
+			// It's an array
+			arr := make([]any, maxN)
+			for i := 1; i <= maxN; i++ {
+				arr[i-1] = luaValueToGo(v.RawGetInt(i))
+			}
+			return arr
+		} else {
+			// It's an object
+			obj := make(map[string]any)
+			v.ForEach(func(key, value lua.LValue) {
+				if keyStr, ok := key.(lua.LString); ok {
+					obj[string(keyStr)] = luaValueToGo(value)
+				}
+			})
+			return obj
+		}
+	case *lua.LNilType:
+		return nil
+	default:
+		return val.String()
+	}
+}
+
+func goValueToLua(L *lua.LState, val any) lua.LValue {
+	switch v := val.(type) {
+	case nil:
+		return lua.LNil
+	case bool:
+		return lua.LBool(v)
+	case float64:
+		return lua.LNumber(v)
+	case string:
+		return lua.LString(v)
+	case []any:
+		table := L.NewTable()
+		for i, item := range v {
+			table.RawSetInt(i+1, goValueToLua(L, item))
+		}
+		return table
+	case map[string]any:
+		table := L.NewTable()
+		for key, value := range v {
+			table.RawSetString(key, goValueToLua(L, value))
+		}
+		return table
+	default:
+		return lua.LString(fmt.Sprintf("%v", v))
+	}
 }
 
 func (m *Menu) CreateLuaEntries() {
