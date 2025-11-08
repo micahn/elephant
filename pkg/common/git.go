@@ -87,9 +87,8 @@ func SetupGit(provider string, cfg Gittable) {
 			if pull {
 				err = w.Pull(&git.PullOptions{RemoteName: "origin"})
 				if err != nil {
-					slog.Info(provider, "gitpull", err)
-
-					if err.Error() != "already up-to-date" {
+					if err.Error() != "already up-to-date" && err.Error() != "remote repository is empty" {
+						slog.Info(provider, "gitpull", err)
 						continue
 					}
 				}
