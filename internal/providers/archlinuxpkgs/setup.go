@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
@@ -106,6 +107,27 @@ func detectHelper() string {
 	return "sudo pacman"
 }
 
+var cacheChan = make(chan struct{})
+
+func clearCache() {
+	timer := time.NewTimer(time.Second * 30)
+	do := false
+
+	for {
+		select {
+		case <-cacheChan:
+			timer.Reset(time.Second * 30)
+			do = true
+		case <-timer.C:
+			if do {
+				packages = make(map[string]Package)
+				debug.FreeOSMemory()
+				do = false
+			}
+		}
+	}
+}
+
 func Setup() {
 	helper := detectHelper()
 
@@ -122,12 +144,13 @@ func Setup() {
 	common.LoadConfig(Name, config)
 
 	setup()
+	go clearCache()
 }
 
 func setup() {
 	getInstalled()
 	getOfficialPkgs()
-	setupAUR()
+	setupAURPkgs()
 
 	b, err := json.Marshal(packages)
 	if err != nil {
@@ -153,14 +176,16 @@ func PrintDoc() {
 }
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
-	switch action {
-	case ActionClearCache:
+	defer func() {
 		packages = make(map[string]Package)
 		debug.FreeOSMemory()
-		return
+	}()
+
+	switch action {
 	case ActionVisitURL:
 		run := strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), packages[identifier].URL))
 		cmd := exec.Command("sh", "-c", run)
+
 		err := cmd.Start()
 		if err != nil {
 			slog.Error(Name, "activate", err, "action", action)
@@ -169,6 +194,7 @@ func Activate(single bool, identifier, action string, query string, args string,
 				cmd.Wait()
 			}()
 		}
+
 		return
 	case ActionRefresh:
 		setup()
@@ -213,6 +239,8 @@ func Activate(single bool, identifier, action string, query string, args string,
 }
 
 func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
+	cacheChan <- struct{}{}
+
 	entries := []*pb.QueryResponse_Item{}
 
 	if len(packages) == 0 {
@@ -350,7 +378,7 @@ func getOfficialPkgs() {
 	}
 }
 
-func setupAUR() {
+func setupAURPkgs() {
 	resp, err := http.Get("https://aur.archlinux.org/packages-meta-v1.json.gz")
 	if err != nil {
 		slog.Error(Name, "aurdownload", err)
@@ -375,6 +403,7 @@ func setupAUR() {
 			Version:     pkg.Version,
 			Repository:  "aur",
 			Installed:   slices.Contains(installed, pkg.Name),
+			URL:         pkg.URL,
 			FullInfo:    pkg.toFullInfo(),
 		}
 	}
