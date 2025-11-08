@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"slices"
 	"strings"
 
@@ -32,6 +33,8 @@ var readme string
 
 const (
 	ActionInstall       = "install"
+	ActionClearCache    = "clear_cache"
+	ActionVisitURL      = "visit_url"
 	ActionRefresh       = "refresh"
 	ActionRemove        = "remove"
 	ActionShowInstalled = "show_installed"
@@ -78,17 +81,17 @@ type AURPackage struct {
 
 func (a AURPackage) toFullInfo() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Name", a.Name))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Description", a.Description))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Version", a.Version))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "URL", a.URL))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "URL-Path", a.URLPath))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Maintainer", a.Maintainer))
-	b.WriteString(fmt.Sprintf("%-*s: %s", 15, "Submitter", a.Submitter))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Submitted", a.FirstSubmitted))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Votes", a.NumVotes))
-	b.WriteString(fmt.Sprintf("%-*s: %f.2", 15, "Popularity", a.Popularity))
-	b.WriteString(fmt.Sprintf("%-*s: %d", 15, "Modified", a.LastModified))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Name", a.Name))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Description", a.Description))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Version", a.Version))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "URL", a.URL))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "URL-Path", a.URLPath))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Maintainer", a.Maintainer))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Submitter", a.Submitter))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Submitted", a.FirstSubmitted))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Votes", a.NumVotes))
+	b.WriteString(fmt.Sprintf("%-*s: %.2f\n", 15, "Popularity", a.Popularity))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Modified", a.LastModified))
 
 	return b.String()
 }
@@ -136,6 +139,7 @@ func setup() {
 	_ = os.WriteFile(cacheFile, b, 0o600)
 
 	packages = make(map[string]Package)
+	debug.FreeOSMemory()
 }
 
 func Available() bool {
@@ -150,6 +154,22 @@ func PrintDoc() {
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
+	case ActionClearCache:
+		packages = make(map[string]Package)
+		debug.FreeOSMemory()
+		return
+	case ActionVisitURL:
+		run := strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), packages[identifier].URL))
+		cmd := exec.Command("sh", "-c", run)
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err, "action", action)
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
+		return
 	case ActionRefresh:
 		setup()
 		return
@@ -195,11 +215,12 @@ func Activate(single bool, identifier, action string, query string, args string,
 func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
-	var indexed map[string]Package
-	b, _ := os.ReadFile(cacheFile)
-	json.Unmarshal(b, &indexed)
+	if len(packages) == 0 {
+		b, _ := os.ReadFile(cacheFile)
+		json.Unmarshal(b, &packages)
+	}
 
-	for k, v := range indexed {
+	for k, v := range packages {
 		score, positions, s := common.FuzzyScore(query, v.Name, exact)
 
 		score2, positions2, s2 := common.FuzzyScore(query, v.Description, exact)
@@ -220,6 +241,10 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 			} else {
 				state = append(state, "available")
 				a = append(a, ActionInstall)
+			}
+
+			if v.URL != "" {
+				a = append(a, "visit_url")
 			}
 
 			subtext := fmt.Sprintf("[%s]", strings.ToLower(v.Repository))
@@ -312,6 +337,8 @@ func getOfficialPkgs() {
 			e.Description = strings.TrimSpace(strings.Split(line, ":")[1])
 		case strings.HasPrefix(line, "Version"):
 			e.Version = strings.TrimSpace(strings.Split(line, ":")[1])
+		case strings.HasPrefix(line, "URL"):
+			e.URL = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
 		}
 
 		if strings.Contains(line, "Validated By") {
