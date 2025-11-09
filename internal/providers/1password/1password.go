@@ -19,7 +19,7 @@ type OpItem struct {
 
 func checkAvailable() {
 	for {
-		cmd := exec.Command("op", "item", "list")
+		cmd := exec.Command("op", "account", "list")
 
 		err := cmd.Run()
 		if err != nil {
