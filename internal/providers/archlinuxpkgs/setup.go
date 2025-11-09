@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -17,16 +18,17 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	"github.com/tinylib/msgp/msgp"
 )
 
 var (
 	Name          = "archlinuxpkgs"
 	NamePretty    = "Arch Linux Packages"
 	config        *Config
-	packages      = map[string]Package{}
 	installed     = []string{}
 	installedOnly = false
 	cacheFile     = common.CacheFile("archlinuxpkgs.json")
+	cachedData    = newCachedData()
 )
 
 //go:embed README.md
@@ -47,23 +49,6 @@ type Config struct {
 	CommandInstall       string `koanf:"command_install" desc:"default command for AUR packages to install. supports %VALUE%." default:"yay -S %VALUE%"`
 	CommandRemove        string `koanf:"command_remove" desc:"default command to remove packages. supports %VALUE%." default:"sudo pacman -R %VALUE%"`
 	AutoWrapWithTerminal bool   `koanf:"auto_wrap_with_terminal" desc:"automatically wraps the command with terminal" default:"true"`
-}
-
-type Package struct {
-	Name           string  `json:"name,omitempty"`
-	Description    string  `json:"description,omitempty"`
-	Repository     string  `json:"repository,omitempty"`
-	Version        string  `json:"version,omitempty"`
-	Installed      bool    `json:"installed,omitempty"`
-	FullInfo       string  `json:"full_info,omitempty"`
-	URL            string  `json:"url,omitempty"`
-	URLPath        string  `json:"url_path,omitempty"`
-	Maintainer     string  `json:"maintainer,omitempty"`
-	Submitter      string  `json:"submitter,omitempty"`
-	NumVotes       int     `json:"num_votes,omitempty"`
-	Popularity     float64 `json:"popularity,omitempty"`
-	FirstSubmitted int64   `json:"first_submitted,omitempty"`
-	LastModified   int64   `json:"last_modified,omitempty"`
 }
 
 type AURPackage struct {
@@ -120,8 +105,7 @@ func clearCache() {
 			do = true
 		case <-timer.C:
 			if do {
-				packages = make(map[string]Package)
-				debug.FreeOSMemory()
+				freeMem()
 				do = false
 			}
 		}
@@ -152,16 +136,20 @@ func setup() {
 	getOfficialPkgs()
 	setupAURPkgs()
 
-	b, err := json.Marshal(packages)
+	var b bytes.Buffer
+	err := msgp.Encode(&b, &cachedData)
 	if err != nil {
-		slog.Error(Name, "cache marshal", err)
-		return
+		slog.Error(Name, "setup", err)
 	}
 
 	os.Remove(cacheFile)
-	_ = os.WriteFile(cacheFile, b, 0o600)
+	_ = os.WriteFile(cacheFile, b.Bytes(), 0o600)
 
-	packages = make(map[string]Package)
+	freeMem()
+}
+
+func freeMem() {
+	cachedData = newCachedData()
 	debug.FreeOSMemory()
 }
 
@@ -176,14 +164,11 @@ func PrintDoc() {
 }
 
 func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
-	defer func() {
-		packages = make(map[string]Package)
-		debug.FreeOSMemory()
-	}()
+	defer freeMem()
 
 	switch action {
 	case ActionVisitURL:
-		run := strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), packages[identifier].URL))
+		run := strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), cachedData.Packages[identifier].URL))
 		cmd := exec.Command("sh", "-c", run)
 
 		err := cmd.Start()
@@ -207,7 +192,7 @@ func Activate(single bool, identifier, action string, query string, args string,
 		return
 	}
 
-	name := packages[identifier].Name
+	name := cachedData.Packages[identifier].Name
 	var pkgcmd string
 
 	switch action {
@@ -243,12 +228,16 @@ func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.
 
 	entries := []*pb.QueryResponse_Item{}
 
-	if len(packages) == 0 {
+	if len(cachedData.Packages) == 0 {
 		b, _ := os.ReadFile(cacheFile)
-		json.Unmarshal(b, &packages)
+		err := msgp.Decode(bytes.NewReader(b), &cachedData)
+		if err != nil {
+			slog.Error(Name, "query", err)
+			return entries
+		}
 	}
 
-	for k, v := range packages {
+	for k, v := range cachedData.Packages {
 		score, positions, s := common.FuzzyScore(query, v.Name, exact)
 
 		score2, positions2, s2 := common.FuzzyScore(query, v.Description, exact)
@@ -371,7 +360,7 @@ func getOfficialPkgs() {
 
 		if strings.Contains(line, "Validated By") {
 			e.FullInfo = data.String()
-			packages[e.Name] = e
+			cachedData.Packages[e.Name] = e
 			e = Package{}
 			data.Reset()
 		}
@@ -397,7 +386,7 @@ func setupAURPkgs() {
 	}
 
 	for _, pkg := range aurPackages {
-		packages[pkg.Name] = Package{
+		cachedData.Packages[pkg.Name] = Package{
 			Name:        pkg.Name,
 			Description: pkg.Description,
 			Version:     pkg.Version,
