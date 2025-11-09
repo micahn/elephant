@@ -55,6 +55,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	slog.Info(Name, "loaded", time.Since(start))
 }
 

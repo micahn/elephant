@@ -53,6 +53,10 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
 }
 
 func Available() bool {

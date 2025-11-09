@@ -72,6 +72,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	loadHist()
 
 	// this is to update exchange rate data

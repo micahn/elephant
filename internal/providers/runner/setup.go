@@ -72,6 +72,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	if len(config.Explicits) == 0 {
 		bins := []string{}
 

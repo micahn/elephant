@@ -61,6 +61,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	findIcons()
 
 	slog.Info(Name, "loaded", time.Since(start))

@@ -52,6 +52,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	parse()
 
 	slog.Info(Name, "symbols/emojis", len(symbols), "time", time.Since(start))

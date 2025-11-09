@@ -46,6 +46,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	if len(config.Vaults) == 0 {
 		slog.Error(Name, "config", "no vaults")
 		return

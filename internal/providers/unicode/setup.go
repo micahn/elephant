@@ -58,6 +58,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	for v := range strings.Lines(data) {
 		if v == "" {
 			continue

@@ -64,6 +64,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	if len(config.Engines) == 0 {
 		config.Engines = append(config.Engines, Engine{
 			Name:    "Google",

@@ -94,6 +94,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	imgTypes["image/png"] = "png"
 	imgTypes["image/jpg"] = "jpg"
 	imgTypes["image/jpeg"] = "jpeg"

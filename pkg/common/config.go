@@ -15,6 +15,7 @@ import (
 
 type Config struct {
 	Icon                 string `koanf:"icon" desc:"icon for provider" default:"depends on provider"`
+	NamePretty           string `koanf:"name_pretty" desc:"displayed name for the provider" default:"depends on provider"`
 	MinScore             int32  `koanf:"min_score" desc:"minimum score for items to be displayed" default:"depends on provider"`
 	HideFromProviderlist bool   `koanf:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
 }

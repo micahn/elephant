@@ -69,6 +69,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	searchDirs := config.SearchDirs
 	if len(searchDirs) == 0 {
 		home, _ := os.UserHomeDir()
