@@ -70,7 +70,6 @@ type Config struct {
 	ImageEditorCmd string `koanf:"image_editor_cmd" desc:"editor to use for images. use '%FILE%' as placeholder for file path." default:""`
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
-	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
 	IgnoreSymbols  bool   `koanf:"ignore_symbols" desc:"ignores symbols/unicode" default:"true"`
 	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries entries older than X minutes" default:"0"`
 }
@@ -87,7 +86,6 @@ func Setup() {
 		ImageEditorCmd: "",
 		TextEditorCmd:  "",
 		Command:        "wl-copy",
-		Recopy:         true,
 		IgnoreSymbols:  true,
 		AutoCleanup:    0,
 	}
@@ -344,20 +342,6 @@ func getClipboardText() (string, error) {
 
 var ignoreMimetypes = []string{"x-kde-passwordManagerHint", "text/uri-list"}
 
-func recopy(b []byte) {
-	if !config.Recopy {
-		return
-	}
-
-	cmd := exec.Command("wl-copy")
-	cmd.Stdin = bytes.NewReader(b)
-
-	err := cmd.Run()
-	if err != nil {
-		slog.Error(Name, "recopy", err)
-	}
-}
-
 func handleSaveToFile() {
 	timer := time.NewTimer(time.Second * 5)
 	do := false
@@ -414,8 +398,6 @@ func updateImage(out []byte) {
 				State: StateEditable,
 			}
 		}
-
-		recopy(out)
 	}
 
 	saveFileChan <- struct{}{}
@@ -464,8 +446,6 @@ func updateText(text string) {
 			Time:    time.Now(),
 			State:   StateEditable,
 		}
-
-		recopy(b)
 	}
 
 	saveFileChan <- struct{}{}
