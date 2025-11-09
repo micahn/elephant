@@ -64,6 +64,11 @@ func Activate(single bool, identifier, action string, query string, args string,
 			if !isAction || !config.WindowIntegrationIgnoreActions {
 				if id, ok := appHasWindow(files[parts[0]]); ok {
 					if err := wlr.Activate(id); err == nil {
+
+						if config.History {
+							h.Save(query, identifier)
+						}
+
 						return
 					} else {
 						slog.Error(Name, "focus window", err)
