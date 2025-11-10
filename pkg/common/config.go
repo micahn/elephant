@@ -20,11 +20,17 @@ type Config struct {
 	HideFromProviderlist bool   `koanf:"hide_from_providerlist" desc:"hides a provider from the providerlist provider. provider provider." default:"false"`
 }
 
+type Command struct {
+	MustSucceed bool   `koanf:"must_succeed" desc:"will try running this command until it completes successfully" default:"false"`
+	Command     string `koanf:"command" desc:"command to execute" default:""`
+}
+
 type ElephantConfig struct {
-	AutoDetectLaunchPrefix bool     `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
-	OverloadLocalEnv       bool     `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
-	IgnoredProviders       []string `koanf:"ignored_providers" desc:"providers to ignore" default:"<empty>"`
-	GitOnDemand            bool     `koanf:"git_on_demand" desc:"sets up git repositories on first query instead of on start" default:"true"`
+	AutoDetectLaunchPrefix bool      `koanf:"auto_detect_launch_prefix" desc:"automatically detects uwsm, app2unit or systemd-run" default:"true"`
+	OverloadLocalEnv       bool      `koanf:"overload_local_env" desc:"overloads the local env" default:"false"`
+	IgnoredProviders       []string  `koanf:"ignored_providers" desc:"providers to ignore" default:"<empty>"`
+	GitOnDemand            bool      `koanf:"git_on_demand" desc:"sets up git repositories on first query instead of on start" default:"true"`
+	BeforeLoad             []Command `koanf:"before_load" desc:"commands to run before starting to load the providers" default:""`
 }
 
 var elephantConfig *ElephantConfig

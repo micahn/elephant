@@ -319,6 +319,8 @@ WantedBy=graphical-session.target
 
 			common.InitRunPrefix()
 
+			runBeforeCommands()
+
 			providers.Load(true)
 
 			slog.Info("elephant", "startup", time.Since(start))
@@ -332,4 +334,29 @@ WantedBy=graphical-session.target
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func runBeforeCommands() {
+	cfg := common.GetElephantConfig()
+
+	if len(cfg.BeforeLoad) == 0 {
+		return
+	}
+
+	for _, v := range cfg.BeforeLoad {
+		for {
+			cmd := exec.Command("sh", "-c", v.Command)
+
+			out, err := cmd.CombinedOutput()
+			if err == nil || !v.MustSucceed {
+				break
+			}
+
+			slog.Error("elephant", "before_load", string(out))
+
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	time.Sleep(1 * time.Second)
 }
