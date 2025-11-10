@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -31,14 +32,13 @@ var (
 var readme string
 
 type Config struct {
-	common.Config           `koanf:",squash"`
-	Engines                 []Engine `koanf:"entries" desc:"entries" default:"google"`
-	MaxGlobalItemsToDisplay int      `koanf:"max_global_items_to_display" desc:"will only show the global websearch entry if there are at most X results." default:"1"`
-	History                 bool     `koanf:"history" desc:"make use of history for sorting" default:"true"`
-	HistoryWhenEmpty        bool     `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
-	EnginesAsActions        bool     `koanf:"engines_as_actions" desc:"run engines as actions" default:"true"`
-	TextPrefix              string   `koanf:"text_prefix" desc:"prefix for the entry text" default:"Search: "`
-	Command                 string   `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"xdg-open"`
+	common.Config    `koanf:",squash"`
+	Engines          []Engine `koanf:"entries" desc:"entries" default:"google"`
+	History          bool     `koanf:"history" desc:"make use of history for sorting" default:"true"`
+	HistoryWhenEmpty bool     `koanf:"history_when_empty" desc:"consider history when query is empty" default:"false"`
+	EnginesAsActions bool     `koanf:"engines_as_actions" desc:"run engines as actions" default:"true"`
+	TextPrefix       string   `koanf:"text_prefix" desc:"prefix for the entry text" default:"Search: "`
+	Command          string   `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"xdg-open"`
 }
 
 type Engine struct {
@@ -55,15 +55,18 @@ func Setup() {
 			Icon:     "applications-internet",
 			MinScore: 20,
 		},
-		MaxGlobalItemsToDisplay: 1,
-		History:                 true,
-		HistoryWhenEmpty:        false,
-		EnginesAsActions:        false,
-		TextPrefix:              "Search: ",
-		Command:                 "xdg-open",
+		History:          true,
+		HistoryWhenEmpty: false,
+		EnginesAsActions: false,
+		TextPrefix:       "Search: ",
+		Command:          "xdg-open",
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
 
 	if len(config.Engines) == 0 {
 		config.Engines = append(config.Engines, Engine{
@@ -77,9 +80,11 @@ func Setup() {
 		config.Engines[0].Default = true
 	}
 
-	handlers.MaxGlobalItemsToDisplayWebsearch = config.MaxGlobalItemsToDisplay
-
 	for k, v := range config.Engines {
+		if v.Default {
+			handlers.MaxGlobalItemsToDisplayWebsearch++
+		}
+
 		if v.Prefix != "" {
 			prefixes[v.Prefix] = k
 			handlers.WebsearchPrefixes[v.Prefix] = v.Name
@@ -99,6 +104,10 @@ func Setup() {
 	})
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()
@@ -107,7 +116,7 @@ func PrintDoc() {
 
 const ActionSearch = "search"
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
@@ -136,9 +145,9 @@ func Activate(identifier, action string, query string, args string) {
 				return
 			}
 
-			q = strings.ReplaceAll(config.Engines[i].URL, "%CLIPBOARD%", url.QueryEscape(clipboard))
+			q = strings.ReplaceAll(os.ExpandEnv(config.Engines[i].URL), "%CLIPBOARD%", url.QueryEscape(clipboard))
 		} else {
-			q = strings.ReplaceAll(config.Engines[i].URL, "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
+			q = strings.ReplaceAll(os.ExpandEnv(config.Engines[i].URL), "%TERM%", url.QueryEscape(strings.TrimSpace(args)))
 		}
 
 		run(query, identifier, q)
@@ -195,7 +204,7 @@ func run(query, identifier, q string) {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	prefix := ""
@@ -277,7 +286,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 		if len(entries) == 0 || !single {
 			for k, v := range config.Engines {
-				if v.Default || v.Prefix == prefix {
+				if v.Default || (prefix != "" && v.Prefix == prefix) {
 					icon := v.Icon
 					if icon == "" {
 						icon = config.Icon
@@ -305,4 +314,12 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

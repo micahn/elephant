@@ -28,6 +28,7 @@ type ActivateRequest struct {
 	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
 	Query         string                 `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
 	Arguments     string                 `protobuf:"bytes,5,opt,name=arguments,proto3" json:"arguments,omitempty"`
+	Single        bool                   `protobuf:"varint,6,opt,name=single,proto3" json:"single,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -97,11 +98,18 @@ func (x *ActivateRequest) GetArguments() string {
 	return ""
 }
 
+func (x *ActivateRequest) GetSingle() bool {
+	if x != nil {
+		return x.Single
+	}
+	return false
+}
+
 var File_activate_proto protoreflect.FileDescriptor
 
 const file_activate_proto_rawDesc = "" +
 	"\n" +
-	"\x0eactivate.proto\x12\x02pb\"\x99\x01\n" +
+	"\x0eactivate.proto\x12\x02pb\"\xb1\x01\n" +
 	"\x0fActivateRequest\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x1e\n" +
 	"\n" +
@@ -109,7 +117,8 @@ const file_activate_proto_rawDesc = "" +
 	"identifier\x12\x16\n" +
 	"\x06action\x18\x03 \x01(\tR\x06action\x12\x14\n" +
 	"\x05query\x18\x04 \x01(\tR\x05query\x12\x1c\n" +
-	"\targuments\x18\x05 \x01(\tR\targumentsB\x06Z\x04./pbb\x06proto3"
+	"\targuments\x18\x05 \x01(\tR\targuments\x12\x16\n" +
+	"\x06single\x18\x06 \x01(\bR\x06singleB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_activate_proto_rawDescOnce sync.Once

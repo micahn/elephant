@@ -4,11 +4,11 @@ package client
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"net"
 	"strings"
 
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
-	"google.golang.org/protobuf/proto"
 )
 
 func Activate(data string) {
@@ -22,7 +22,7 @@ func Activate(data string) {
 		Arguments:  v[4],
 	}
 
-	b, err := proto.Marshal(&req)
+	b, err := json.Marshal(&req)
 	if err != nil {
 		panic(err)
 	}
@@ -34,6 +34,7 @@ func Activate(data string) {
 	defer conn.Close()
 
 	var buffer bytes.Buffer
+	buffer.Write([]byte{1})
 	buffer.Write([]byte{1})
 
 	lengthBuf := make([]byte, 4)

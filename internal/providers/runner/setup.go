@@ -72,6 +72,10 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	if len(config.Explicits) == 0 {
 		bins := []string{}
 
@@ -126,6 +130,10 @@ func Setup() {
 	slog.Info(Name, "executables", len(items), "time", time.Since(start))
 }
 
+func Available() bool {
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()
@@ -137,22 +145,17 @@ const (
 	ActionRunInTerminal = "runterminal"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case history.ActionDelete:
 		h.Remove(identifier)
 		return
 	case ActionRunInTerminal, ActionRun:
-
 		bin := ""
 
 		if identifier == "generic" {
 			split := strings.SplitN(query, " ", 2)
 			bin = split[0]
-
-			if len(split) > 1 {
-				args = split[1]
-			}
 		} else {
 			for _, v := range items {
 				if v.Identifier == identifier {
@@ -162,7 +165,7 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		}
 
-		run := strings.TrimSpace(fmt.Sprintf("%s %s", bin, args))
+		run := strings.TrimSpace(fmt.Sprintf("%s %s %s", common.LaunchPrefix(""), bin, args))
 		if action == ActionRunInTerminal {
 			run = common.WrapWithTerminal(run)
 		}
@@ -192,7 +195,7 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	for _, v := range items {
@@ -260,4 +263,12 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

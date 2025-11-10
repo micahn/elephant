@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -62,6 +63,19 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+}
+
+func Available() bool {
+	if os.Getenv("XDG_CURRENT_DESKTOP") == "niri" {
+		return true
+	}
+
+	slog.Info(Name, "available", "not a niri session. disabling")
+	return false
 }
 
 func PrintDoc() {
@@ -122,7 +136,7 @@ func monitor(appid string, res chan int) {
 	}
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	i, _ := strconv.Atoi(identifier)
 
 	s := config.Sessions[i]
@@ -193,7 +207,7 @@ func goWorkspaceDown() {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 
 	entries := []*pb.QueryResponse_Item{}
@@ -223,11 +237,19 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		}
 	}
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 
 	return entries
 }
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/abenz1267/elephant/v2/internal/comm"
 	"github.com/abenz1267/elephant/v2/internal/comm/client"
+	"github.com/abenz1267/elephant/v2/internal/install"
 	"github.com/abenz1267/elephant/v2/internal/providers"
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
@@ -117,6 +118,8 @@ WantedBy=graphical-session.target
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
+					common.LoadGlobalConfig()
+
 					providers.Load(false)
 
 					for _, v := range providers.Providers {
@@ -150,13 +153,20 @@ WantedBy=graphical-session.target
 				Name:    "generatedoc",
 				Aliases: []string{"d"},
 				Usage:   "generates a markdown documentation",
+				Arguments: []cli.Argument{
+					&cli.StringArg{
+						Name: "provider",
+					},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					common.LoadGlobalConfig()
+
 					logger := slog.New(slog.DiscardHandler)
 					slog.SetDefault(logger)
 
 					providers.Load(false)
 
-					util.GenerateDoc()
+					util.GenerateDoc(cmd.StringArg("provider"))
 					return nil
 				},
 			},
@@ -169,6 +179,12 @@ WantedBy=graphical-session.target
 						DefaultText: "run async, close manually",
 						Usage:       "use to not close after querying, in case of async querying.",
 					},
+					&cli.BoolFlag{
+						Name:        "json",
+						Category:    "",
+						DefaultText: "output as json",
+						Usage:       "if you want json. use this.",
+					},
 				},
 				Arguments: []cli.Argument{
 					&cli.StringArg{
@@ -176,9 +192,72 @@ WantedBy=graphical-session.target
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					client.Query(cmd.StringArg("content"), cmd.Bool("async"))
+					client.Query(cmd.StringArg("content"), cmd.Bool("async"), cmd.Bool("json"))
 
 					return nil
+				},
+			},
+			{
+				Name: "state",
+				Arguments: []cli.Argument{
+					&cli.StringArg{
+						Name: "content",
+					},
+				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        "json",
+						Category:    "",
+						DefaultText: "output as json",
+						Usage:       "if you want json. use this.",
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					client.ProviderState(cmd.StringArg("content"), cmd.Bool("json"))
+
+					return nil
+				},
+			},
+			{
+				Name:  "community",
+				Usage: "elephant-community based actions",
+				Commands: []*cli.Command{
+					{
+						Name:        "install",
+						Description: "installs the given menus, if no menu is given , it will list availables instead",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Install(cmd.Args().Slice())
+
+							return nil
+						},
+					},
+					{
+						Name:        "readme",
+						Description: "displays the readme of the given menu",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Readme(cmd.Args().First())
+
+							return nil
+						},
+					},
+					{
+						Name:        "remove",
+						Description: "if not provided with any menu names, it will list all installed menus",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.Remove(cmd.Args().Slice())
+
+							return nil
+						},
+					},
+					{
+						Name:        "list",
+						Description: "lists all available community menus",
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							install.List()
+
+							return nil
+						},
+					},
 				},
 			},
 			{
@@ -240,6 +319,8 @@ WantedBy=graphical-session.target
 
 			common.InitRunPrefix()
 
+			runBeforeCommands()
+
 			providers.Load(true)
 
 			slog.Info("elephant", "startup", time.Since(start))
@@ -253,4 +334,29 @@ WantedBy=graphical-session.target
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func runBeforeCommands() {
+	cfg := common.GetElephantConfig()
+
+	if len(cfg.BeforeLoad) == 0 {
+		return
+	}
+
+	for _, v := range cfg.BeforeLoad {
+		for {
+			cmd := exec.Command("sh", "-c", v.Command)
+
+			out, err := cmd.CombinedOutput()
+			if err == nil || !v.MustSucceed {
+				break
+			}
+
+			slog.Error("elephant", "before_load", string(out))
+
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	time.Sleep(1 * time.Second)
 }

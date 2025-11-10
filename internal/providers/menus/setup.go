@@ -38,13 +38,17 @@ func PrintDoc() {
 
 func Setup() {}
 
+func Available() bool {
+	return true
+}
+
 const (
 	ActionGoParent = "menus:parent"
 	ActionOpen     = "menus:open"
 	ActionDefault  = "menus:default"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case ActionGoParent:
 		identifier = strings.TrimPrefix(identifier, "menus:")
@@ -62,22 +66,29 @@ func Activate(identifier, action string, query string, args string) {
 		var e common.Entry
 		var menu *common.Menu
 
-		identifier = strings.TrimPrefix(identifier, "menus:")
+		defer func() {
+			if e.Menu != "" && e.Value != "" {
+				common.LastMenuValueMut.Lock()
+				common.LastMenuValue[e.Menu] = e.Value
+				common.LastMenuValueMut.Unlock()
+			}
+		}()
 
-		openmenu := false
+		submenu := ""
+		m := ""
+
+		if strings.HasPrefix(identifier, "menus:") {
+			splits := strings.Split(identifier, ":")
+			submenu = splits[1]
+			m = splits[2]
+		} else {
+			m = strings.Split(identifier, ":")[0]
+		}
 
 		terminal := false
 
-		for _, v := range common.Menus {
-			if identifier == v.Name {
-				menu = v
-				openmenu = true
-				break
-			}
-
-			process := v.Entries
-
-			for _, entry := range process {
+		if v, ok := common.Menus[m]; ok {
+			for _, entry := range v.Entries {
 				if identifier == entry.Identifier {
 					menu = v
 					e = entry
@@ -89,8 +100,8 @@ func Activate(identifier, action string, query string, args string) {
 			}
 		}
 
-		if openmenu {
-			handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, menu.Name)
+		if submenu != "" {
+			handlers.ProviderUpdated <- fmt.Sprintf("%s:%s", Name, submenu)
 			return
 		}
 
@@ -128,11 +139,17 @@ func Activate(identifier, action string, query string, args string) {
 		}
 
 		if after, ok := strings.CutPrefix(run, "lua:"); ok {
-			if menu != nil && menu.LuaState != nil {
+			if menu == nil {
+				return
+			}
+
+			state := menu.NewLuaState()
+
+			if state != nil {
 				functionName := after
 
-				if err := menu.LuaState.CallByParam(lua.P{
-					Fn:      menu.LuaState.GetGlobal(functionName),
+				if err := state.CallByParam(lua.P{
+					Fn:      state.GetGlobal(functionName),
 					NRet:    0,
 					Protect: true,
 				}, lua.LString(e.Value), lua.LString(args)); err != nil {
@@ -143,11 +160,7 @@ func Activate(identifier, action string, query string, args string) {
 					h.Save(query, identifier)
 				}
 			} else {
-				menuName := "unknown"
-				if menu != nil {
-					menuName = menu.Name
-				}
-				slog.Error(Name, "no lua state available for menu", menuName)
+				slog.Error(Name, "no lua state available for menu", menu.Name)
 			}
 			return
 		}
@@ -199,10 +212,16 @@ func Activate(identifier, action string, query string, args string) {
 		if menu != nil && menu.History {
 			h.Save(query, identifier)
 		}
+
+		if slices.Contains(menu.AsyncActions, action) {
+			updated := itemToEntry(format, query, conn, menu.Actions, menu.NamePretty, single, menu.Icon, &e)
+			handlers.UpdateItem(format, query, conn, updated)
+
+		}
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, format uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 	menu := ""
@@ -226,79 +245,10 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		}
 
 		for k, me := range v.Entries {
-			icon := v.Icon
-
-			if me.Icon != "" {
-				icon = me.Icon
-			}
-
-			sub := me.Subtext
-
-			if !single {
-				if sub == "" {
-					sub = v.NamePretty
-				} else {
-					sub = fmt.Sprintf("%s: %s", v.NamePretty, sub)
-				}
-			}
-
-			var actions []string
-
-			if v.Parent != "" && single {
-				actions = append(actions, ActionGoParent)
-			}
-
-			for k := range me.Actions {
-				actions = append(actions, k)
-			}
-
-			for k := range v.Actions {
-				if !slices.Contains(actions, k) {
-					actions = append(actions, k)
-				}
-			}
-
-			if strings.HasPrefix(me.Identifier, "menus:") {
-				actions = append(actions, ActionOpen)
-			}
-
-			if len(actions) == 0 || (len(actions) == 1 && actions[0] == ActionGoParent) {
-				actions = append(actions, ActionDefault)
-			}
-
-			e := &pb.QueryResponse_Item{
-				Identifier:  me.Identifier,
-				Text:        me.Text,
-				Subtext:     sub,
-				Provider:    fmt.Sprintf("%s:%s", Name, me.Menu),
-				Icon:        icon,
-				State:       me.State,
-				Actions:     actions,
-				Type:        pb.QueryResponse_REGULAR,
-				Preview:     me.Preview,
-				PreviewType: me.PreviewType,
-			}
+			e := itemToEntry(format, query, conn, v.Actions, v.NamePretty, single, v.Icon, &v.Entries[k])
 
 			if v.FixedOrder {
 				e.Score = 1_000_000 - int32(k)
-			}
-
-			if me.Async != "" {
-				v.Entries[k].Value = ""
-
-				go func() {
-					cmd := exec.Command("sh", "-c", me.Async)
-					out, err := cmd.CombinedOutput()
-
-					if err == nil {
-						e.Text = strings.TrimSpace(string(out))
-						v.Entries[k].Value = e.Text
-					} else {
-						e.Text = "%DELETE%"
-					}
-
-					handlers.UpdateItem(query, conn, e)
-				}()
 			}
 
 			if query != "" {
@@ -306,21 +256,11 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 					Field: "text",
 				}
 
-				e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start = common.FuzzyScore(query, e.Text, exact)
-
 				if v.SearchName {
 					me.Keywords = append(me.Keywords, me.Menu)
 				}
 
-				for _, v := range me.Keywords {
-					score, positions, start := common.FuzzyScore(query, v, exact)
-
-					if score > e.Score {
-						e.Score = score
-						e.Fuzzyinfo.Positions = positions
-						e.Fuzzyinfo.Start = start
-					}
-				}
+				_, e.Score, e.Fuzzyinfo.Positions, e.Fuzzyinfo.Start, _ = calcScore(query, me, exact)
 			}
 
 			var usageScore int32
@@ -343,11 +283,129 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		}
 	}
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 
 	return entries
 }
 
 func Icon() string {
 	return ""
+}
+
+func HideFromProviderlist() bool {
+	return common.MenuConfigLoaded.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	menu := strings.Split(provider, ":")[1]
+
+	if val, ok := common.Menus[menu]; ok {
+		if val.Parent != "" {
+			return &pb.ProviderStateResponse{
+				Actions: []string{ActionGoParent},
+			}
+		}
+	}
+
+	return &pb.ProviderStateResponse{}
+}
+
+func calcScore(q string, d common.Entry, exact bool) (string, int32, []int32, int32, bool) {
+	var scoreRes int32
+	var posRes []int32
+	var startRes int32
+	var match string
+	var modifier int32
+
+	toSearch := []string{d.Text, d.Subtext}
+	toSearch = append(toSearch, d.Keywords...)
+
+	for k, v := range toSearch {
+		score, pos, start := common.FuzzyScore(q, v, exact)
+
+		if score > scoreRes {
+			scoreRes = score
+			posRes = pos
+			startRes = start
+			match = v
+			modifier = int32(k)
+		}
+	}
+
+	if scoreRes == 0 {
+		return "", 0, nil, 0, false
+	}
+
+	scoreRes = max(scoreRes-min(modifier*5, 50)-startRes, 10)
+
+	return match, scoreRes, posRes, startRes, true
+}
+
+func itemToEntry(format uint8, query string, conn net.Conn, menuActions map[string]string, namePretty string, single bool, icon string, me *common.Entry) *pb.QueryResponse_Item {
+	if me.Icon != "" {
+		icon = me.Icon
+	}
+
+	sub := me.Subtext
+
+	if !single {
+		if sub == "" {
+			sub = namePretty
+		} else {
+			sub = fmt.Sprintf("%s: %s", namePretty, sub)
+		}
+	}
+
+	var actions []string
+
+	for k := range me.Actions {
+		actions = append(actions, k)
+	}
+
+	for k := range menuActions {
+		if !slices.Contains(actions, k) {
+			actions = append(actions, k)
+		}
+	}
+
+	if strings.HasPrefix(me.Identifier, "menus:") {
+		actions = append(actions, ActionOpen)
+	}
+
+	if len(actions) == 0 {
+		actions = append(actions, ActionDefault)
+	}
+
+	e := &pb.QueryResponse_Item{
+		Identifier:  me.Identifier,
+		Text:        me.Text,
+		Subtext:     sub,
+		Provider:    fmt.Sprintf("%s:%s", Name, me.Menu),
+		Icon:        icon,
+		State:       me.State,
+		Actions:     actions,
+		Type:        pb.QueryResponse_REGULAR,
+		Preview:     me.Preview,
+		PreviewType: me.PreviewType,
+	}
+
+	if me.Async != "" {
+		me.Value = ""
+
+		go func() {
+			cmd := exec.Command("sh", "-c", me.Async)
+			out, err := cmd.CombinedOutput()
+
+			if err == nil {
+				e.Text = strings.TrimSpace(string(out))
+				me.Value = e.Text
+			} else {
+				e.Text = "%DELETE%"
+			}
+
+			handlers.UpdateItem(format, query, conn, e)
+		}()
+	}
+
+	return e
 }

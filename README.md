@@ -66,6 +66,10 @@ Elephant acts as a unified backend service that aggregates data from various sou
   - create items with due times
   - notifications
 
+- **Bookmarks**
+  - add and remove bookmarks
+  - configure and assign categories, f.e. "work" or "personal"
+
 - **Unicodes**
   - find unicode symbols
 
@@ -77,6 +81,9 @@ Elephant acts as a unified backend service that aggregates data from various sou
 
 - **Niri Sessions**
   - define sets of apps to open and run them
+
+- **1Password**
+  - access your 1Password vaults
 
 ## Installation
 

@@ -45,7 +45,7 @@ type Config struct {
 	Placeholder   string `koanf:"placeholder" desc:"placeholder to display for async update" default:"calculating..."`
 	RequireNumber bool   `koanf:"require_number" desc:"don't perform if query does not contain a number" default:"true"`
 	MinChars      int    `koanf:"min_chars" desc:"don't perform if query is shorter than min_chars" default:"3"`
-	Command       string `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wl-copy"`
+	Command       string `koanf:"command" desc:"default command to be executed. supports %VALUE%." default:"wl-copy -n %VALUE%"`
 	Async         bool   `koanf:"async" desc:"calculation will be send async" default:"true"`
 }
 
@@ -58,17 +58,6 @@ type HistoryItem struct {
 var history = []HistoryItem{}
 
 func Setup() {
-	p, err := exec.LookPath("qalc")
-	if err != nil {
-		slog.Error(Name, "setup", err)
-		return
-	}
-
-	if p == "" {
-		slog.Error(Name, "setup", "qalc not installed")
-		return
-	}
-
 	config = &Config{
 		Config: common.Config{
 			Icon: "accessories-calculator",
@@ -77,17 +66,21 @@ func Setup() {
 		Placeholder:   "calculating...",
 		RequireNumber: true,
 		MinChars:      3,
-		Command:       "wl-copy",
+		Command:       "wl-copy -n %VALUE%",
 		Async:         false,
 	}
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	loadHist()
 
 	// this is to update exchange rate data
 	cmd := exec.Command("qalc", "-e", "1+1")
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		slog.Error(Name, "init", err)
 	} else {
@@ -97,13 +90,24 @@ func Setup() {
 	}
 }
 
+func Available() bool {
+	p, err := exec.LookPath("qalc")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "libqalculate not found. disabling")
+		return false
+	}
+
+	return true
+}
+
 func PrintDoc() {
 	fmt.Println(readme)
 	fmt.Println()
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	i := slices.IndexFunc(history, func(item HistoryItem) bool {
 		return item.Identifier == identifier
 	})
@@ -181,7 +185,7 @@ func saveToHistory(query, result string) {
 	saveHist()
 }
 
-func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, _ bool, format uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 
 	entries := []*pb.QueryResponse_Item{}
@@ -226,7 +230,7 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 					e.Text = "%DELETE%"
 				}
 
-				handlers.UpdateItem(query, conn, e)
+				handlers.UpdateItem(format, query, conn, e)
 			}()
 
 			entries = append(entries, e)
@@ -260,7 +264,7 @@ func Query(conn net.Conn, query string, single bool, _ bool) []*pb.QueryResponse
 		}
 	}
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 
 	return entries
 }
@@ -311,4 +315,12 @@ func saveHist() {
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

@@ -53,6 +53,14 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+}
+
+func Available() bool {
+	return true
 }
 
 func PrintDoc() {
@@ -61,7 +69,7 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	time.Sleep(time.Duration(config.Delay) * time.Millisecond)
 
 	i, _ := strconv.Atoi(identifier)
@@ -80,7 +88,7 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 
 	entries := []*pb.QueryResponse_Item{}
@@ -114,7 +122,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		}
 	}
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 
 	return entries
 }
@@ -148,4 +156,12 @@ func calcScore(q string, d Snippet, exact bool) (int32, []int32, int32, bool) {
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

@@ -10,12 +10,14 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
+	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
 	"github.com/djherbis/times"
 	"github.com/fsnotify/fsnotify"
 )
@@ -24,17 +26,26 @@ import (
 var readme string
 
 var (
-	Name       = "files"
-	NamePretty = "Files"
-	config     *Config
-	watcher    *fsnotify.Watcher
+	Name         = "files"
+	NamePretty   = "Files"
+	config       *Config
+	watcher      *fsnotify.Watcher
+	ignoreRegexp []*regexp.Regexp
 )
 
+type IgnoredPreview struct {
+	Path        string `koanf:"path" desc:"path to ignore preview for" default:""`
+	Placeholder string `koanf:"placeholder" desc:"text to display instead" default:""`
+}
+
 type Config struct {
-	common.Config `koanf:",squash"`
-	LaunchPrefix  string   `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
-	IgnoredDirs   []string `koanf:"ignored_dirs" desc:"ignore these directories" default:""`
-	FdFlags       string   `koanf:"fd_flags" desc:"flags for fd" default:"--ignore-vcs --type file --type directory"`
+	common.Config  `koanf:",squash"`
+	LaunchPrefix   string           `koanf:"launch_prefix" desc:"overrides the default app2unit or uwsm prefix, if set." default:""`
+	IgnoredDirs    []string         `koanf:"ignored_dirs" desc:"ignore these directories. regexp based." default:""`
+	IgnorePreviews []IgnoredPreview `koanf:"ignore_previews" desc:"paths will not have a preview" default:""`
+	IgnoreWatching []string         `koanf:"ignore_watching" desc:"paths will not be watched" default:""`
+	SearchDirs     []string         `koanf:"search_dirs" desc:"directories to search for files" default:"$HOME"`
+	FdFlags        string           `koanf:"fd_flags" desc:"flags for fd" default:"--ignore-vcs --type file --type directory"`
 }
 
 func Setup() {
@@ -52,13 +63,34 @@ func Setup() {
 			MinScore: 20,
 		},
 		LaunchPrefix: "",
+		SearchDirs:   []string{},
 		FdFlags:      "--ignore-vcs --type file --type directory",
 	}
 
 	common.LoadConfig(Name, config)
 
-	home, _ := os.UserHomeDir()
-	cmd := exec.Command("fd", ".", home)
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
+	searchDirs := config.SearchDirs
+	if len(searchDirs) == 0 {
+		home, _ := os.UserHomeDir()
+		searchDirs = []string{home}
+	}
+
+	for _, v := range config.IgnoredDirs {
+		r, err := regexp.Compile(v)
+		if err != nil {
+			slog.Error(Name, "ignoredirs regexp", err)
+			continue
+		}
+
+		ignoreRegexp = append(ignoreRegexp, r)
+	}
+
+	cmd := exec.Command("fd", ".")
+	cmd.Args = append(cmd.Args, searchDirs...)
 	cmd.Args = append(cmd.Args, strings.Fields(config.FdFlags)...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -75,6 +107,33 @@ func Setup() {
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	for _, path := range config.SearchDirs {
+
+		if !slices.Contains(config.IgnoreWatching, path) {
+			watcher.Add(path)
+		}
+
+		if info, err := times.Stat(path); err == nil {
+			diff := start.Sub(info.ChangeTime())
+
+			md5 := md5.Sum([]byte(path))
+			md5str := hex.EncodeToString(md5[:])
+
+			f := File{
+				Identifier: md5str,
+				Path:       path,
+				Changed:    time.Time{},
+			}
+
+			res := 3600 - diff.Seconds()
+			if res > 0 {
+				f.Changed = info.ChangeTime()
+			}
+
+			putFile(f)
+		}
 	}
 
 	deleteChan := make(chan string)
@@ -115,14 +174,16 @@ func Setup() {
 			path := strings.TrimSpace(scanner.Text())
 
 			if len(path) > 0 {
-				for _, v := range config.IgnoredDirs {
-					if strings.HasPrefix(path, v) {
+				for _, v := range ignoreRegexp {
+					if v.Match([]byte(path)) {
 						continue outer
 					}
 				}
 
 				if strings.HasSuffix(path, "/") {
-					watcher.Add(path)
+					if !slices.Contains(config.IgnoreWatching, path) {
+						watcher.Add(path)
+					}
 				}
 
 				if info, err := times.Stat(path); err == nil {
@@ -166,6 +227,17 @@ func Setup() {
 	}
 
 	slog.Info(Name, "time", time.Since(start))
+}
+
+func Available() bool {
+	p, err := exec.LookPath("fd")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "fd not found. disabling.")
+		return false
+	}
+
+	return true
 }
 
 func handleDelete(deleteChan chan string) {
@@ -252,4 +324,12 @@ func PrintDoc() {
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

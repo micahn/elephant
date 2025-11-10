@@ -23,7 +23,6 @@ Submenus/Dmenus will automatically get an action `open`.
 name = "other"
 name_pretty = "Other"
 icon = "applications-other"
-global_search = true
 
 [[entries]]
 text = "Color Picker"
@@ -84,7 +83,6 @@ submenu = "dmenu:uuctl"
 name = "screenshots"
 name_pretty = "Screenshots"
 icon = "camera-photo"
-global_search = true
 
 [[entries]]
 text = "View"
@@ -120,7 +118,6 @@ submenu = "other"
 name = "bookmarks"
 name_pretty = "Bookmarks"
 icon = "bookmark"
-global_search = true
 action = "xdg-open %VALUE%"
 
 [[entries]]
@@ -143,6 +140,14 @@ value = "https://www.amazon.de/gp/video/storefront/"
 #### Lua Example
 
 By default, the Lua script will be called on every empty query. If you don't want this behaviour, but instead want to cache the query once, you can set `Cache=true` in the menu's config.
+
+Following global functions will be set:
+
+- `lastMenuValue(<menuname>)` => gets the last used value of a menu
+- `state()` => retrieves the state for this menu (string array/table)
+- `setState(state)` => sets the state for this menu (string array/table)
+- `jsonEncode` => encodes to json
+- `jsonDecodes` => decodes from json
 
 ```lua
 Name = "luatest"

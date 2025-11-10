@@ -1,76 +1,164 @@
 package main
 
 import (
-	"crypto/md5"
+	"bytes"
 	_ "embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"runtime/debug"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
+	"github.com/tinylib/msgp/msgp"
 )
 
 var (
-	Name       = "archlinuxpkgs"
-	NamePretty = "Arch Linux Packages"
-	config     *Config
-	isSetup    = false
-	mut        sync.Mutex
-	entryMap   = map[string]Entry{}
-	installed  = []string{}
-	command    = "yay -S"
+	Name          = "archlinuxpkgs"
+	NamePretty    = "Arch Linux Packages"
+	config        *Config
+	installed     = []string{}
+	installedOnly = false
+	cacheFile     = common.CacheFile("archlinuxpkgs.json")
+	cachedData    = newCachedData()
 )
 
 //go:embed README.md
 var readme string
 
 const (
-	ActionInstall = "install"
-	ActionRemove  = "remove"
+	ActionInstall       = "install"
+	ActionClearCache    = "clear_cache"
+	ActionVisitURL      = "visit_url"
+	ActionRefresh       = "refresh"
+	ActionRemove        = "remove"
+	ActionShowInstalled = "show_installed"
+	ActionShowAll       = "show_all"
 )
 
 type Config struct {
-	common.Config   `koanf:",squash"`
-	RefreshInterval int    `koanf:"refresh_interval" desc:"refresh database every X minutes. 0 disables the automatic refresh and refreshing requires an elephant restart." default:"60"`
-	InstalledPrefix string `koanf:"installed_prefix" desc:"prefix to use to show only explicitly installed packages" default:"i:"`
+	common.Config        `koanf:",squash"`
+	CommandInstall       string `koanf:"command_install" desc:"default command for AUR packages to install. supports %VALUE%." default:"yay -S %VALUE%"`
+	CommandRemove        string `koanf:"command_remove" desc:"default command to remove packages. supports %VALUE%." default:"sudo pacman -R %VALUE%"`
+	AutoWrapWithTerminal bool   `koanf:"auto_wrap_with_terminal" desc:"automatically wraps the command with terminal" default:"true"`
 }
 
-type Entry struct {
-	Name        string
-	Description string
-	Repository  string
-	Version     string
-	Installed   bool
+type AURPackage struct {
+	Name           string  `json:"name,omitempty"`
+	Description    string  `json:"description,omitempty"`
+	Version        string  `json:"version,omitempty"`
+	URL            string  `json:"url,omitempty"`
+	URLPath        string  `json:"url_path,omitempty"`
+	Maintainer     string  `json:"maintainer,omitempty"`
+	Submitter      string  `json:"submitter,omitempty"`
+	NumVotes       int     `json:"num_votes,omitempty"`
+	Popularity     float64 `json:"popularity,omitempty"`
+	FirstSubmitted int64   `json:"first_submitted,omitempty"`
+	LastModified   int64   `json:"last_modified,omitempty"`
+}
+
+func (a AURPackage) toFullInfo() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Name", a.Name))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Description", a.Description))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Version", a.Version))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "URL", a.URL))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "URL-Path", a.URLPath))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Maintainer", a.Maintainer))
+	b.WriteString(fmt.Sprintf("%-*s: %s\n", 15, "Submitter", a.Submitter))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Submitted", a.FirstSubmitted))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Votes", a.NumVotes))
+	b.WriteString(fmt.Sprintf("%-*s: %.2f\n", 15, "Popularity", a.Popularity))
+	b.WriteString(fmt.Sprintf("%-*s: %d\n", 15, "Modified", a.LastModified))
+
+	return b.String()
+}
+
+func detectHelper() string {
+	helpers := []string{"paru", "yay"}
+	for _, h := range helpers {
+		if _, err := exec.LookPath(h); err == nil {
+			return h
+		}
+	}
+	return "sudo pacman"
+}
+
+var cacheChan = make(chan struct{})
+
+func clearCache() {
+	timer := time.NewTimer(time.Second * 30)
+	do := false
+
+	for {
+		select {
+		case <-cacheChan:
+			timer.Reset(time.Second * 30)
+			do = true
+		case <-timer.C:
+			if do {
+				freeMem()
+				do = false
+			}
+		}
+	}
 }
 
 func Setup() {
+	helper := detectHelper()
+
 	config = &Config{
 		Config: common.Config{
 			Icon:     "applications-internet",
 			MinScore: 20,
 		},
-		RefreshInterval: 60,
-		InstalledPrefix: "i:",
+		CommandInstall:       fmt.Sprintf("%s -S %s", helper, "%VALUE%"),
+		CommandRemove:        fmt.Sprintf("%s -R %s", helper, "%VALUE%"),
+		AutoWrapWithTerminal: true,
 	}
 
 	common.LoadConfig(Name, config)
 
-	path, _ := exec.LookPath("paru")
-	if path != "" {
-		command = "paru -S"
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
 	}
 
-	go refresh()
+	setup()
+	go clearCache()
+}
+
+func setup() {
+	getInstalled()
+	getOfficialPkgs()
+	setupAURPkgs()
+
+	var b bytes.Buffer
+	err := msgp.Encode(&b, &cachedData)
+	if err != nil {
+		slog.Error(Name, "setup", err)
+	}
+
+	os.Remove(cacheFile)
+	_ = os.WriteFile(cacheFile, b.Bytes(), 0o600)
+
+	freeMem()
+}
+
+func freeMem() {
+	cachedData = newCachedData()
+	debug.FreeOSMemory()
+}
+
+func Available() bool {
+	return true
 }
 
 func PrintDoc() {
@@ -79,25 +167,54 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
-	name := entryMap[identifier].Name
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
+	defer freeMem()
+
+	switch action {
+	case ActionVisitURL:
+		run := strings.TrimSpace(fmt.Sprintf("%s xdg-open '%s'", common.LaunchPrefix(""), cachedData.Packages[identifier].URL))
+		cmd := exec.Command("sh", "-c", run)
+
+		err := cmd.Start()
+		if err != nil {
+			slog.Error(Name, "activate", err, "action", action)
+		} else {
+			go func() {
+				cmd.Wait()
+			}()
+		}
+
+		return
+	case ActionRefresh:
+		setup()
+		return
+	case ActionShowAll:
+		installedOnly = false
+		return
+	case ActionShowInstalled:
+		installedOnly = true
+		return
+	}
+
+	name := cachedData.Packages[identifier].Name
 	var pkgcmd string
 
 	switch action {
 	case ActionInstall:
-		pkgcmd = "sudo pacman -S"
-
-		if entryMap[identifier].Repository == "AUR" {
-			pkgcmd = command
-		}
+		pkgcmd = config.CommandInstall
 	case ActionRemove:
-		pkgcmd = "sudo pacman -R"
+		pkgcmd = config.CommandRemove
 	default:
 		slog.Error(Name, "activate", fmt.Sprintf("unknown action: %s", action))
 		return
 	}
 
-	toRun := common.WrapWithTerminal(fmt.Sprintf("%s %s", pkgcmd, name))
+	pkgcmd = strings.ReplaceAll(pkgcmd, "%VALUE%", name)
+	toRun := common.WrapWithTerminal(pkgcmd)
+
+	if !config.AutoWrapWithTerminal {
+		toRun = pkgcmd
+	}
 
 	cmd := exec.Command("sh", "-c", toRun)
 	err := cmd.Start()
@@ -110,21 +227,21 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
+	cacheChan <- struct{}{}
+
 	entries := []*pb.QueryResponse_Item{}
 
-	if !isSetup {
-		return entries
+	if len(cachedData.Packages) == 0 {
+		b, _ := os.ReadFile(cacheFile)
+		err := msgp.Decode(bytes.NewReader(b), &cachedData)
+		if err != nil {
+			slog.Error(Name, "query", err)
+			return entries
+		}
 	}
 
-	oi := false
-
-	if strings.HasPrefix(query, config.InstalledPrefix) {
-		oi = true
-		query = strings.TrimPrefix(query, config.InstalledPrefix)
-	}
-
-	for k, v := range entryMap {
+	for k, v := range cachedData.Packages {
 		score, positions, s := common.FuzzyScore(query, v.Name, exact)
 
 		score2, positions2, s2 := common.FuzzyScore(query, v.Description, exact)
@@ -135,7 +252,7 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 			s = s2
 		}
 
-		if (score > config.MinScore || query == "") && (!oi || (oi && v.Installed)) {
+		if (score > config.MinScore || query == "") && (!installedOnly || (installedOnly && v.Installed)) {
 			state := []string{}
 			a := []string{}
 
@@ -147,21 +264,26 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 				a = append(a, ActionInstall)
 			}
 
-			name := v.Name
+			if v.URL != "" {
+				a = append(a, "visit_url")
+			}
 
-			if !oi && v.Installed {
-				name = fmt.Sprintf("%s (installed)", name)
+			subtext := fmt.Sprintf("[%s]", strings.ToLower(v.Repository))
+			if v.Installed {
+				subtext = fmt.Sprintf("[%s] [installed]", strings.ToLower(v.Repository))
 			}
 
 			entries = append(entries, &pb.QueryResponse_Item{
-				Identifier: k,
-				Text:       name,
-				Type:       pb.QueryResponse_REGULAR,
-				Subtext:    fmt.Sprintf("%s (%s) (%s)", v.Description, v.Version, v.Repository),
-				Provider:   Name,
-				State:      state,
-				Actions:    a,
-				Score:      score,
+				Identifier:  k,
+				Text:        v.Name,
+				Type:        pb.QueryResponse_REGULAR,
+				Subtext:     subtext,
+				Provider:    Name,
+				State:       state,
+				Actions:     a,
+				Score:       score,
+				Preview:     v.FullInfo,
+				PreviewType: util.PreviewTypeText,
 				Fuzzyinfo: &pb.QueryResponse_Item_FuzzyInfo{
 					Start:     s,
 					Field:     "text",
@@ -184,7 +306,25 @@ func Icon() string {
 	return config.Icon
 }
 
-func queryPacman() {
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	actions := []string{ActionRefresh}
+
+	if installedOnly {
+		actions = append(actions, ActionShowAll)
+	} else {
+		actions = append(actions, ActionShowInstalled)
+	}
+
+	return &pb.ProviderStateResponse{
+		Actions: actions,
+	}
+}
+
+func getOfficialPkgs() {
 	cmd := exec.Command("pacman", "-Si")
 
 	out, err := cmd.CombinedOutput()
@@ -192,15 +332,20 @@ func queryPacman() {
 		slog.Error(Name, "pacman", err)
 	}
 
-	e := Entry{}
+	var data strings.Builder
+	e := Package{}
 
 	for line := range strings.Lines(string(out)) {
 		if strings.TrimSpace(line) == "" {
-			md5 := md5.Sum(fmt.Appendf(nil, "%s:%s", e.Name, e.Description))
-			md5str := hex.EncodeToString(md5[:])
+			continue
+		}
 
-			entryMap[md5str] = e
-			e = Entry{}
+		parts := strings.SplitN(strings.TrimSpace(line), ":", 2)
+
+		if len(parts) == 2 {
+			data.WriteString(fmt.Sprintf("%-*s: %s\n", 15, parts[0], strings.TrimSpace(parts[1])))
+		} else {
+			data.WriteString(fmt.Sprintf("%-*s", 17, line))
 		}
 
 		switch {
@@ -213,11 +358,20 @@ func queryPacman() {
 			e.Description = strings.TrimSpace(strings.Split(line, ":")[1])
 		case strings.HasPrefix(line, "Version"):
 			e.Version = strings.TrimSpace(strings.Split(line, ":")[1])
+		case strings.HasPrefix(line, "URL"):
+			e.URL = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		}
+
+		if strings.Contains(line, "Validated By") {
+			e.FullInfo = data.String()
+			cachedData.Packages[e.Name] = e
+			e = Package{}
+			data.Reset()
 		}
 	}
 }
 
-func setupAUR() {
+func setupAURPkgs() {
 	resp, err := http.Get("https://aur.archlinux.org/packages-meta-v1.json.gz")
 	if err != nil {
 		slog.Error(Name, "aurdownload", err)
@@ -227,25 +381,30 @@ func setupAUR() {
 
 	decoder := json.NewDecoder(resp.Body)
 
-	var entries []Entry
-	err = decoder.Decode(&entries)
+	var aurPackages []AURPackage
+
+	err = decoder.Decode(&aurPackages)
 	if err != nil {
 		slog.Error(Name, "jsondecode", err)
 		return
 	}
 
-	for _, e := range entries {
-		e.Repository = "AUR"
-
-		e.Installed = slices.Contains(installed, e.Name)
-		md5 := md5.Sum(fmt.Appendf(nil, "%s:%s", e.Name, e.Description))
-		md5str := hex.EncodeToString(md5[:])
-
-		entryMap[md5str] = e
+	for _, pkg := range aurPackages {
+		cachedData.Packages[pkg.Name] = Package{
+			Name:        pkg.Name,
+			Description: pkg.Description,
+			Version:     pkg.Version,
+			Repository:  "aur",
+			Installed:   slices.Contains(installed, pkg.Name),
+			URL:         pkg.URL,
+			FullInfo:    pkg.toFullInfo(),
+		}
 	}
 }
 
 func getInstalled() {
+	installed = []string{}
+
 	cmd := exec.Command("pacman", "-Qe")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -253,25 +412,9 @@ func getInstalled() {
 	}
 
 	for line := range strings.Lines(string(out)) {
-		installed = append(installed, strings.Fields(line)[0])
-	}
-}
-
-func refresh() {
-	for {
-		mut.Lock()
-		entryMap = make(map[string]Entry)
-		getInstalled()
-		queryPacman()
-		setupAUR()
-		mut.Unlock()
-
-		isSetup = true
-
-		if config.RefreshInterval == 0 {
-			break
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			installed = append(installed, fields[0])
 		}
-
-		time.Sleep(time.Duration(config.RefreshInterval) * time.Minute)
 	}
 }

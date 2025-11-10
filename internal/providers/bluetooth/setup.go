@@ -55,7 +55,22 @@ func Setup() {
 
 	common.LoadConfig(Name, config)
 
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+
 	slog.Info(Name, "loaded", time.Since(start))
+}
+
+func Available() bool {
+	p, err := exec.LookPath("bluetoothctl")
+
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "bluetoothctl not found. disabling")
+		return false
+	}
+
+	return true
 }
 
 func PrintDoc() {
@@ -74,7 +89,7 @@ const (
 	ActionFind       = "find"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	cmd := exec.Command("bluetoothctl")
 
 	removed := false
@@ -188,7 +203,7 @@ quit
 	}
 }
 
-func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 
@@ -247,12 +262,28 @@ func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_
 		}
 	}
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 	return entries
 }
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	if !find {
+		return &pb.ProviderStateResponse{
+			States:   []string{},
+			Actions:  []string{ActionFind},
+			Provider: "",
+		}
+	}
+
+	return &pb.ProviderStateResponse{}
 }
 
 func getDevices() {
@@ -297,44 +328,46 @@ func getDevices() {
 	}
 
 	for v := range strings.Lines(string(out)) {
-		fields := strings.SplitN(v, " ", 3)
-		d := Device{
-			Name: strings.TrimSpace(fields[2]),
-			Mac:  fields[1],
-		}
-
-		cmd := exec.Command("bluetoothctl", "info", d.Mac)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			slog.Error(Name, "get info", err)
-		}
-
-		for l := range strings.Lines(string(out)) {
-			if strings.HasPrefix(strings.TrimSpace(l), "Icon") {
-				d.Icon = strings.TrimPrefix(strings.TrimSpace(l), "Icon: ")
+		if strings.Contains(v, "Device") {
+			fields := strings.SplitN(v, " ", 3)
+			d := Device{
+				Name: strings.TrimSpace(fields[2]),
+				Mac:  fields[1],
 			}
 
-			if strings.HasPrefix(strings.TrimSpace(l), "Paired") {
-				if strings.Contains(l, "yes") {
-					d.Paired = true
+			cmd := exec.Command("bluetoothctl", "info", d.Mac)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				slog.Error(Name, "get info", err)
+			}
+
+			for l := range strings.Lines(string(out)) {
+				if strings.HasPrefix(strings.TrimSpace(l), "Icon") {
+					d.Icon = strings.TrimPrefix(strings.TrimSpace(l), "Icon: ")
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(l), "Paired") {
+					if strings.Contains(l, "yes") {
+						d.Paired = true
+					}
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(l), "Connected") {
+					if strings.Contains(l, "yes") {
+						d.Connected = true
+					}
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(l), "Trusted") {
+					if strings.Contains(l, "yes") {
+						d.Trusted = true
+					}
 				}
 			}
 
-			if strings.HasPrefix(strings.TrimSpace(l), "Connected") {
-				if strings.Contains(l, "yes") {
-					d.Connected = true
-				}
+			if d.Paired {
+				devices = append(devices, d)
 			}
-
-			if strings.HasPrefix(strings.TrimSpace(l), "Trusted") {
-				if strings.Contains(l, "yes") {
-					d.Trusted = true
-				}
-			}
-		}
-
-		if d.Paired {
-			devices = append(devices, d)
 		}
 	}
 }

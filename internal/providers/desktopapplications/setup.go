@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
-	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
+	"github.com/abenz1267/elephant/v2/pkg/common/wlr"
+	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
 )
 
 type DesktopFile struct {
@@ -26,6 +28,7 @@ var (
 	NamePretty = "Desktop Applications"
 	h          = history.Load(Name)
 	pins       = loadpinned()
+	pinsMu     sync.RWMutex
 	config     *Config
 	br         = []*regexp.Regexp{}
 	wmi        WMIntegration
@@ -33,6 +36,7 @@ var (
 
 type WMIntegration interface {
 	GetWorkspace() string
+	GetCurrentWindows() []string
 	MoveToWorkspace(workspace, initialWMClass string)
 }
 
@@ -56,6 +60,8 @@ type Config struct {
 	WindowIntegration              bool              `koanf:"window_integration" desc:"will enable window integration, meaning focusing an open app instead of opening a new instance" default:"false"`
 	WindowIntegrationIgnoreActions bool              `koanf:"window_integration_ignore_actions" desc:"will ignore the window integration for actions" default:"true"`
 	WMIntegration                  bool              `koanf:"wm_integration" desc:"Moves apps to the workspace where they were launched at automatically. Currently Niri only." default:"false"`
+	ScoreOpenWindows               bool              `koanf:"score_open_windows" desc:"Apps that have open windows, get their score halved. Requires window_integration." default:"true"`
+	SingleInstanceApps             []string          `koanf:"single_instance_apps" desc:"application IDs that don't ever spawn a new window. " default:"[\"discord\"]"`
 }
 
 func loadpinned() []string {
@@ -87,6 +93,7 @@ func Setup() {
 			Icon:     "applications-other",
 			MinScore: 30,
 		},
+		ScoreOpenWindows:        true,
 		ActionMinScore:          20,
 		OnlySearchTitle:         false,
 		ShowActions:             false,
@@ -98,29 +105,38 @@ func Setup() {
 		IconPlaceholder:         "applications-other",
 		Aliases:                 map[string]string{},
 		WindowIntegration:       false,
+		SingleInstanceApps:      []string{"discord"},
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
 
 	parseRegexp()
 	loadFiles()
 
 	if config.WindowIntegration {
-		if !windows.IsSetup {
-			windows.Init()
+		if !wlr.IsSetup {
+			go wlr.Init()
 		}
 	}
 
-	switch os.Getenv("XDG_CURRENT_DESKTOP") {
-	case "niri":
-		wmi = Niri{}
-	case "Hyprland":
-		wmi = Hyprland{}
+	if config.WMIntegration {
+		switch os.Getenv("XDG_CURRENT_DESKTOP") {
+		case "niri":
+			wmi = Niri{}
+		case "Hyprland":
+			wmi = Hyprland{}
+		}
 	}
 
-	config.WMIntegration = wmi != nil
-
 	slog.Info(Name, "desktop files", len(files), "time", time.Since(start))
+}
+
+func Available() bool {
+	return true
 }
 
 func parseRegexp() {
@@ -136,4 +152,12 @@ func parseRegexp() {
 
 func Icon() string {
 	return config.Icon
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

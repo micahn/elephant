@@ -10,12 +10,10 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +27,6 @@ import (
 	"github.com/abenz1267/elephant/v2/internal/util"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
-	"golang.org/x/net/html"
 )
 
 var (
@@ -40,7 +37,8 @@ var (
 	config           *Config
 	clipboardhistory = make(map[string]*Item)
 	mu               sync.Mutex
-	imagesOnly       = false
+	currentMode      = Combined
+	nextMode         = ActionImagesOnly
 )
 
 //go:embed README.md
@@ -72,9 +70,8 @@ type Config struct {
 	ImageEditorCmd string `koanf:"image_editor_cmd" desc:"editor to use for images. use '%FILE%' as placeholder for file path." default:""`
 	TextEditorCmd  string `koanf:"text_editor_cmd" desc:"editor to use for text, otherwise default for mimetype. use '%FILE%' as placeholder for file path." default:""`
 	Command        string `koanf:"command" desc:"default command to be executed" default:"wl-copy"`
-	Recopy         bool   `koanf:"recopy" desc:"recopy content to make it persistent after closing a window" default:"true"`
 	IgnoreSymbols  bool   `koanf:"ignore_symbols" desc:"ignores symbols/unicode" default:"true"`
-	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries every X minutes" default:"0"`
+	AutoCleanup    int    `koanf:"auto_cleanup" desc:"will automatically cleanup entries entries older than X minutes" default:"0"`
 }
 
 func Setup() {
@@ -89,12 +86,15 @@ func Setup() {
 		ImageEditorCmd: "",
 		TextEditorCmd:  "",
 		Command:        "wl-copy",
-		Recopy:         true,
 		IgnoreSymbols:  true,
 		AutoCleanup:    0,
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
 
 	imgTypes["image/png"] = "png"
 	imgTypes["image/jpg"] = "jpg"
@@ -117,15 +117,35 @@ func Setup() {
 	slog.Info(Name, "history", len(clipboardhistory), "time", time.Since(start))
 }
 
+func Available() bool {
+	p, err := exec.LookPath("wl-paste")
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "wl-clipboard not found. disabling")
+		return false
+	}
+
+	p, err = exec.LookPath("identify")
+	if p == "" || err != nil {
+		slog.Info(Name, "available", "imagemagick not found. disabling")
+		return false
+	}
+
+	return true
+}
+
 func cleanup() {
 	for {
 		time.Sleep(time.Duration(config.AutoCleanup) * time.Minute)
 
 		i := 0
 
-		for k := range clipboardhistory {
-			delete(clipboardhistory, k)
-			i++
+		now := time.Now()
+
+		for k, v := range clipboardhistory {
+			if now.Sub(v.Time).Minutes() >= float64(config.AutoCleanup) {
+				delete(clipboardhistory, k)
+				i++
+			}
 		}
 
 		if i != 0 {
@@ -278,11 +298,7 @@ func handleChange() {
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		img, imgerr := getClipboardImage()
-		if imgerr == nil {
-			mu.Lock()
-			updateImage(img)
-			mu.Unlock()
+		if paused {
 			continue
 		}
 
@@ -293,6 +309,14 @@ func handleChange() {
 			mu.Unlock()
 			continue
 		}
+
+		img, imgerr := getClipboardImage()
+		if imgerr == nil {
+			mu.Lock()
+			updateImage(img)
+			mu.Unlock()
+			continue
+		}
 	}
 }
 
@@ -300,7 +324,7 @@ func getClipboardImage() ([]byte, error) {
 	cmd := exec.Command("wl-paste", "-t", "image", "-n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Debug(Name, "updateimg", string(out))
+		slog.Debug(Name, "get clipboard img", string(out))
 	}
 
 	return out, err
@@ -310,27 +334,13 @@ func getClipboardText() (string, error) {
 	cmd := exec.Command("wl-paste", "-t", "text", "-n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Debug(Name, "updateimg", string(out))
+		slog.Debug(Name, "get clipboard text", string(out))
 	}
 
 	return string(out), err
 }
 
 var ignoreMimetypes = []string{"x-kde-passwordManagerHint", "text/uri-list"}
-
-func recopy(b []byte) {
-	if !config.Recopy {
-		return
-	}
-
-	cmd := exec.Command("wl-copy")
-	cmd.Stdin = bytes.NewReader(b)
-
-	err := cmd.Run()
-	if err != nil {
-		slog.Error(Name, "recopy", err)
-	}
-}
 
 func handleSaveToFile() {
 	timer := time.NewTimer(time.Second * 5)
@@ -388,8 +398,6 @@ func updateImage(out []byte) {
 				State: StateEditable,
 			}
 		}
-
-		recopy(out)
 	}
 
 	saveFileChan <- struct{}{}
@@ -438,8 +446,6 @@ func updateText(text string) {
 			Time:    time.Now(),
 			State:   StateEditable,
 		}
-
-		recopy(b)
 	}
 
 	saveFileChan <- struct{}{}
@@ -493,17 +499,22 @@ func PrintDoc() {
 }
 
 const (
-	ActionPause             = "pause"
-	ActionUnpause           = "unpause"
-	ActionCopy              = "copy"
-	ActionEdit              = "edit"
-	ActionRemove            = "remove"
-	ActionRemoveAll         = "remove_all"
-	ActionToggleImages      = "toggle_images"
-	ActionDisableImagesOnly = "disable_images_only"
+	ActionPause      = "pause"
+	ActionUnpause    = "unpause"
+	ActionCopy       = "copy"
+	ActionEdit       = "edit"
+	ActionRemove     = "remove"
+	ActionRemoveAll  = "remove_all"
+	ActionImagesOnly = "show_images_only"
+	ActionTextOnly   = "show_text_only"
+	ActionCombined   = "show_combined"
+
+	ImagesOnly = "images_only"
+	TextOnly   = "text_only"
+	Combined   = "combined"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	if action == "" {
 		action = ActionCopy
 	}
@@ -513,12 +524,15 @@ func Activate(identifier, action string, query string, args string) {
 		paused = true
 	case ActionUnpause:
 		paused = false
-	case ActionDisableImagesOnly:
-		imagesOnly = false
-		return
-	case ActionToggleImages:
-		imagesOnly = !imagesOnly
-		return
+	case ActionImagesOnly:
+		currentMode = ImagesOnly
+		nextMode = ActionTextOnly
+	case ActionTextOnly:
+		currentMode = TextOnly
+		nextMode = ActionCombined
+	case ActionCombined:
+		currentMode = Combined
+		nextMode = ActionImagesOnly
 	case ActionEdit:
 		item := clipboardhistory[identifier]
 		if item.State != StateEditable {
@@ -627,12 +641,19 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func Query(conn net.Conn, query string, _ bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, _ bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	entries := []*pb.QueryResponse_Item{}
 
 	for k, v := range clipboardhistory {
-		if imagesOnly && v.Img == "" {
-			continue
+		switch currentMode {
+		case ImagesOnly:
+			if v.Img == "" {
+				continue
+			}
+		case TextOnly:
+			if v.Img != "" {
+				continue
+			}
 		}
 
 		e := &pb.QueryResponse_Item{
@@ -703,45 +724,28 @@ func Icon() string {
 	return config.Icon
 }
 
-func getImgSrc(n *html.Node) string {
-	if n.Type == html.ElementNode && n.Data == "img" {
-		for _, attr := range n.Attr {
-			if attr.Key == "src" {
-				return attr.Val
-			}
-		}
-	}
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if src := getImgSrc(c); src != "" {
-			return src
-		}
-	}
-
-	return ""
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
 }
 
-func downloadImage(url string) ([]byte, string) {
-	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println(url)
-		slog.Error(Name, "download", err)
-		return nil, ""
-	}
-	defer resp.Body.Close()
+func State(provider string) *pb.ProviderStateResponse {
+	states := []string{currentMode}
+	actions := []string{nextMode}
 
-	if resp.StatusCode != http.StatusOK {
-		slog.Error(Name, "download status", err)
-		return nil, ""
+	if paused {
+		states = append(states, "paused")
+		actions = append(actions, ActionUnpause)
+	} else {
+		states = append(states, "unpaused")
+		actions = append(actions, ActionPause)
 	}
 
-	contentType := resp.Header.Get("Content-Type")
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error(Name, "download read", err)
-		return nil, ""
+	if len(clipboardhistory) > 0 {
+		actions = append(actions, ActionRemoveAll)
 	}
 
-	return data, contentType
+	return &pb.ProviderStateResponse{
+		States:  states,
+		Actions: actions,
+	}
 }

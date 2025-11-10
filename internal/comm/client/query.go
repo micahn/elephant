@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/abenz1267/elephant/v2/pkg/pb/pb"
-	"google.golang.org/protobuf/proto"
 )
 
 var socket string
@@ -31,7 +31,7 @@ func init() {
 	}
 }
 
-func Query(data string, async bool) {
+func Query(data string, async, j bool) {
 	v := strings.Split(data, ";")
 	maxresults, _ := strconv.Atoi(v[2])
 
@@ -41,7 +41,7 @@ func Query(data string, async bool) {
 		Maxresults: int32(maxresults),
 	}
 
-	b, err := proto.Marshal(&req)
+	b, err := json.Marshal(&req)
 	if err != nil {
 		panic(err)
 	}
@@ -54,6 +54,7 @@ func Query(data string, async bool) {
 
 	var buffer bytes.Buffer
 	buffer.Write([]byte{0})
+	buffer.Write([]byte{1})
 
 	lengthBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(lengthBuf, uint32(len(b)))
@@ -95,10 +96,19 @@ func Query(data string, async bool) {
 		payload := msg[5:]
 
 		resp := &pb.QueryResponse{}
-		if err := proto.Unmarshal(payload, resp); err != nil {
+		if err := json.Unmarshal(payload, resp); err != nil {
 			panic(err)
 		}
 
-		fmt.Println(resp)
+		if !j {
+			fmt.Println(resp)
+		} else {
+			out, err := json.Marshal(resp)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Println(string(out))
+		}
 	}
 }

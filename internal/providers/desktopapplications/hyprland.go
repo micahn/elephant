@@ -14,6 +14,10 @@ import (
 
 type Hyprland struct{}
 
+func (Hyprland) GetCurrentWindows() []string {
+	return []string{}
+}
+
 func (Hyprland) GetWorkspace() string {
 	cmd := exec.Command("hyprctl", "activeworkspace")
 
@@ -82,5 +86,6 @@ func (c Hyprland) MoveToWorkspace(workspace, initialWMClass string) {
 	case <-ctx.Done():
 		conn.Close()
 	case <-done:
+		conn.Close()
 	}
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"strings"
@@ -14,12 +15,22 @@ import (
 
 type ActivateRequest struct{}
 
-func (a *ActivateRequest) Handle(cid uint32, conn net.Conn, data []byte) {
+func (a *ActivateRequest) Handle(format uint8, cid uint32, conn net.Conn, data []byte) {
 	req := &pb.ActivateRequest{}
-	if err := proto.Unmarshal(data, req); err != nil {
-		slog.Error("activationrequesthandler", "protobuf", err)
 
-		return
+	switch format {
+	case 0:
+		if err := proto.Unmarshal(data, req); err != nil {
+			slog.Error("activationrequesthandler", "protobuf", err)
+
+			return
+		}
+	case 1:
+		if err := json.Unmarshal(data, req); err != nil {
+			slog.Error("activationrequesthandler", "protobuf", err)
+
+			return
+		}
 	}
 
 	provider := req.Provider
@@ -29,7 +40,7 @@ func (a *ActivateRequest) Handle(cid uint32, conn net.Conn, data []byte) {
 	}
 
 	if p, ok := providers.Providers[provider]; ok {
-		p.Activate(req.Identifier, req.Action, req.Query, req.Arguments)
+		p.Activate(req.Single, req.Identifier, req.Action, req.Query, req.Arguments, format, conn)
 
 		var buffer bytes.Buffer
 		buffer.Write([]byte{ActivationFinished})

@@ -39,6 +39,14 @@ func Setup() {
 	}
 
 	common.LoadConfig(Name, config)
+
+	if config.NamePretty != "" {
+		NamePretty = config.NamePretty
+	}
+}
+
+func Available() bool {
+	return true
 }
 
 func PrintDoc() {
@@ -47,15 +55,15 @@ func PrintDoc() {
 	util.PrintConfig(Config{}, Name)
 }
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 }
 
-func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResponse_Item {
+func Query(conn net.Conn, query string, single bool, exact bool, _ uint8) []*pb.QueryResponse_Item {
 	start := time.Now()
 	entries := []*pb.QueryResponse_Item{}
 
 	for _, v := range providers.Providers {
-		if *v.Name == Name {
+		if *v.Name == Name || v.HideFromProviderlist() {
 			continue
 		}
 
@@ -139,11 +147,19 @@ func Query(conn net.Conn, query string, single bool, exact bool) []*pb.QueryResp
 		return strings.Compare(a.Text, b.Text)
 	})
 
-	slog.Info(Name, "queryresult", len(entries), "time", time.Since(start))
+	slog.Debug(Name, "query", time.Since(start))
 
 	return entries
 }
 
 func Icon() string {
 	return ""
+}
+
+func HideFromProviderlist() bool {
+	return config.HideFromProviderlist
+}
+
+func State(provider string) *pb.ProviderStateResponse {
+	return &pb.ProviderStateResponse{}
 }

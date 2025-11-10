@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,9 +13,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/abenz1267/elephant/v2/internal/util/windows"
 	"github.com/abenz1267/elephant/v2/pkg/common"
 	"github.com/abenz1267/elephant/v2/pkg/common/history"
+	"github.com/abenz1267/elephant/v2/pkg/common/wlr"
+	"github.com/neurlang/wayland/wl"
 )
 
 const (
@@ -26,7 +28,7 @@ const (
 	ActionNewInstance = "new_instance"
 )
 
-func Activate(identifier, action string, query string, args string) {
+func Activate(single bool, identifier, action string, query string, args string, format uint8, conn net.Conn) {
 	switch action {
 	case ActionPinUp:
 		movePin(identifier, false)
@@ -58,21 +60,18 @@ func Activate(identifier, action string, query string, args string) {
 			toRun = files[parts[0]].Exec
 		}
 
-		if files[parts[0]].StartupWMClass != "" && config.WindowIntegration && windows.IsSetup && action != ActionNewInstance {
+		if config.WindowIntegration && wlr.IsSetup && action != ActionNewInstance {
 			if !isAction || !config.WindowIntegrationIgnoreActions {
-				w, err := windows.GetWindowList()
-				if err != nil {
-					slog.Error(Name, "windows", err)
-				} else {
-					for _, v := range w {
-						if v.AppID == files[parts[0]].StartupWMClass {
-							err := windows.FocusWindow(v.ID)
-							if err != nil {
-								slog.Error(Name, "windows", err)
-							} else {
-								return
-							}
+				if id, ok := appHasWindow(files[parts[0]]); ok {
+					if err := wlr.Activate(id); err == nil {
+
+						if config.History {
+							h.Save(query, identifier)
 						}
+
+						return
+					} else {
+						slog.Error(Name, "focus window", err)
 					}
 				}
 			}
@@ -92,9 +91,15 @@ func Activate(identifier, action string, query string, args string) {
 			Setsid: true,
 		}
 
-		if config.WMIntegration {
-			go wmi.MoveToWorkspace(wmi.GetWorkspace(), files[parts[0]].StartupWMClass)
+		if config.WMIntegration && wmi != nil {
+			appid := files[parts[0]].StartupWMClass
+
+			if !slices.Contains(config.SingleInstanceApps, appid) || !slices.Contains(wmi.GetCurrentWindows(), appid) {
+				go wmi.MoveToWorkspace(wmi.GetWorkspace(), appid)
+			}
 		}
+
+		slog.Debug(Name, "activate", cmd.String())
 
 		err := cmd.Start()
 		if err != nil {
@@ -117,11 +122,10 @@ func Activate(identifier, action string, query string, args string) {
 	}
 }
 
-func isPinned(identifier string) bool {
-	return slices.Contains(pins, identifier)
-}
-
 func movePin(identifier string, down bool) {
+	pinsMu.Lock()
+	defer pinsMu.Unlock()
+
 	index := -1
 	for i, pin := range pins {
 		if pin == identifier {
@@ -151,7 +155,10 @@ func movePin(identifier string, down bool) {
 }
 
 func pinItem(identifier string) {
-	if isPinned(identifier) {
+	pinsMu.Lock()
+	defer pinsMu.Unlock()
+
+	if slices.Contains(pins, identifier) {
 		i := slices.Index(pins, identifier)
 		pins = append(pins[:i], pins[i+1:]...)
 	} else {
@@ -177,4 +184,16 @@ func pinItem(identifier string) {
 	if err != nil {
 		slog.Error("pinned", "writefile", err)
 	}
+}
+
+func appHasWindow(f *DesktopFile) (wl.ProxyId, bool) {
+	w := wlr.Windows()
+
+	for k, v := range w {
+		if v.AppID == f.StartupWMClass || v.AppID == f.Icon || v.AppID == strings.Fields(f.Exec)[0] {
+			return k, true
+		}
+	}
+
+	return wl.ProxyId(0), false
 }
